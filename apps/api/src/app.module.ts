@@ -6,6 +6,11 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { UsersModule } from './modules/users/users.module';
+import { AcademicModule } from './modules/academic/academic.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { LmsModule } from './modules/lms/lms.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { LibraryModule } from './modules/library/library.module';
 
 @Module({
   imports: [
@@ -19,6 +24,11 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     OrganizationModule,
     UsersModule,
+    AcademicModule,
+    AttendanceModule,
+    LmsModule,
+    FinanceModule,
+    LibraryModule,
   ],
 })
 export class AppModule {}

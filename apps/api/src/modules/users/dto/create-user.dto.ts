@@ -33,3 +33,4 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'Role wajib dipilih' })
   roles!: UserRole[];
 }
+

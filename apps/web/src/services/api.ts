@@ -50,3 +50,35 @@ export async function apiRequest<T = any>(
   return data;
 }
 
+export const api = {
+  get: async <T = any>(endpoint: string, config?: { params?: Record<string, any> }): Promise<ApiResponse<T>> => {
+    let url = endpoint;
+    if (config?.params) {
+      const sp = new URLSearchParams();
+      Object.entries(config.params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          sp.append(k, String(v));
+        }
+      });
+      const qs = sp.toString();
+      if (qs) url += (url.includes('?') ? '&' : '?') + qs;
+    }
+    return apiRequest<T>(url, { method: 'GET' });
+  },
+  post: async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
+    return apiRequest<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  patch: async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
+    return apiRequest<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  delete: async <T = any>(endpoint: string): Promise<ApiResponse<T>> => {
+    return apiRequest<T>(endpoint, { method: 'DELETE' });
+  },
+};
+

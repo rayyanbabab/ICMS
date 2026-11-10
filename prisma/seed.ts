@@ -455,6 +455,275 @@ async function main() {
   }
   console.log(`✓ Seeded student registration, KRS approval, and KHS grade details.`);
 
+  // 8. Finance & UKT Invoices
+  const paidInvoice = await prisma.studentInvoice.upsert({
+    where: { invoiceNumber: 'INV-2026-0001' },
+    update: {},
+    create: {
+      studentId: student.id,
+      semesterId: semester.id,
+      invoiceNumber: 'INV-2026-0001',
+      title: 'UKT / SPP Semester Ganjil 2026/2027',
+      amount: 6500000,
+      paidAmount: 6500000,
+      status: 'PAID',
+      dueDate: new Date('2026-09-01'),
+      paidAt: new Date('2026-08-28'),
+    },
+  });
+
+  await prisma.invoiceItem.createMany({
+    data: [
+      { invoiceId: paidInvoice.id, name: 'Biaya Pokok Pendidikan (BPP / UKT)', amount: 4500000 },
+      { invoiceId: paidInvoice.id, name: 'Biaya Praktikum Laboratorium Software', amount: 1500000 },
+      { invoiceId: paidInvoice.id, name: 'Iuran Asuransi Mahasiswa & Fasilitas Kampus', amount: 500000 },
+    ],
+    skipDuplicates: true,
+  }).catch(() => {});
+
+  await prisma.payment.upsert({
+    where: { referenceNo: 'PAY-VA-88202601001' },
+    update: {},
+    create: {
+      invoiceId: paidInvoice.id,
+      paymentMethod: 'VIRTUAL_ACCOUNT',
+      referenceNo: 'PAY-VA-88202601001',
+      amount: 6500000,
+      status: 'SUCCESS',
+      isVerified: true,
+      paidAt: new Date('2026-08-28'),
+    },
+  });
+
+  const unpaidInvoice = await prisma.studentInvoice.upsert({
+    where: { invoiceNumber: 'INV-2026-0042' },
+    update: {},
+    create: {
+      studentId: student.id,
+      semesterId: semester.id,
+      invoiceNumber: 'INV-2026-0042',
+      title: 'Ujian Sertifikasi Internasional Cloud Computing (AWS/GCP)',
+      amount: 1250000,
+      paidAmount: 0,
+      status: 'UNPAID',
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // in 14 days
+    },
+  });
+
+  await prisma.invoiceItem.createMany({
+    data: [
+      { invoiceId: unpaidInvoice.id, name: 'Voucher Ujian Resmi Cloud Architect', amount: 1000000 },
+      { invoiceId: unpaidInvoice.id, name: 'Akses Mock Exam & Laboratorium Hands-on', amount: 250000 },
+    ],
+    skipDuplicates: true,
+  }).catch(() => {});
+
+  console.log('✓ Seeded student financial invoices and payments.');
+
+  // 9. LMS Materials, Assignments & Submissions
+  const primaryClass = seededClasses[0];
+  if (primaryClass) {
+    await prisma.courseMaterial.createMany({
+      data: [
+        {
+          classId: primaryClass.id,
+          title: 'Modul 01: Pengenalan Bahasa C & Sintaksis Komputasi',
+          description: 'Materi pengantar instalasi GCC compiler, variabel, tipe data, dan I/O.',
+          fileUrl: 'https://cdn.icms.ac.id/materials/if101-modul-01.pdf',
+          fileType: 'PDF',
+          fileSize: 2450000,
+          order: 1,
+        },
+        {
+          classId: primaryClass.id,
+          title: 'Modul 02: Percabangan, Perulangan, dan Fungsi Rekursif',
+          description: 'Logika kontrol alur program, pemecahan masalah rekursif, dan stack memory.',
+          fileUrl: 'https://cdn.icms.ac.id/materials/if101-modul-02.pdf',
+          fileType: 'PDF',
+          fileSize: 3120000,
+          order: 2,
+        },
+        {
+          classId: primaryClass.id,
+          title: 'Slide Kuliah 03: Pointer & Alokasi Memori Dinamis',
+          description: 'Pembahasan mendalam konsep pointer, reference, malloc, dan free.',
+          fileUrl: 'https://cdn.icms.ac.id/materials/if101-slide-03.pptx',
+          fileType: 'PPTX',
+          fileSize: 8400000,
+          order: 3,
+        },
+      ],
+      skipDuplicates: true,
+    }).catch(() => {});
+
+    const assignment1 = await prisma.assignment.create({
+      data: {
+        classId: primaryClass.id,
+        title: 'Tugas Praktikum 1: Algoritma Pencarian & Sorting',
+        description: 'Implementasikan algoritma QuickSort dan Binary Search dalam Bahasa C dengan analisis Big-O notation.',
+        attachmentUrl: 'https://cdn.icms.ac.id/assignments/tugas1-spec.pdf',
+        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // in 5 days
+        maxScore: 100,
+      },
+    }).catch(() => null);
+
+    const assignment2 = await prisma.assignment.create({
+      data: {
+        classId: primaryClass.id,
+        title: 'Tugas Praktikum 2: Pointer & Struktur Data Senarai Tertaut (Linked List)',
+        description: 'Buatlah struktur data Singly & Doubly Linked List lengkap dengan operasi penambahan, penghapusan, dan pembalikan node.',
+        attachmentUrl: 'https://cdn.icms.ac.id/assignments/tugas2-spec.pdf',
+        dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000), // in 12 days
+        maxScore: 100,
+      },
+    }).catch(() => null);
+
+    if (assignment1) {
+      await prisma.assignmentSubmission.upsert({
+        where: {
+          assignmentId_studentId: {
+            assignmentId: assignment1.id,
+            studentId: student.id,
+          },
+        },
+        update: {},
+        create: {
+          assignmentId: assignment1.id,
+          studentId: student.id,
+          fileUrl: 'https://cdn.icms.ac.id/submissions/202601001-tugas1.zip',
+          submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          score: 95.0,
+          feedback: 'Sangat baik! Implementasi rapi, memory leak free berdasarkan pengujian Valgrind.',
+          gradedAt: new Date(),
+        },
+      });
+    }
+  }
+  console.log('✓ Seeded LMS course materials, assignments, and sample submissions.');
+
+  // 10. Digital Library Categories, Books, and Loans
+  const catCS = await prisma.bookCategory.upsert({
+    where: { name: 'Teknologi Informasi & Ilmu Komputer' },
+    update: {},
+    create: {
+      name: 'Teknologi Informasi & Ilmu Komputer',
+      description: 'Buku teks, jurnal ilmiah, dan referensi rekayasa perangkat lunak serta komputasi.',
+    },
+  });
+
+  const catMath = await prisma.bookCategory.upsert({
+    where: { name: 'Matematika & Sains Terapan' },
+    update: {},
+    create: {
+      name: 'Matematika & Sains Terapan',
+      description: 'Koleksi matematika diskrit, kalkulus, statistika data, dan fisika komputasi.',
+    },
+  });
+
+  const catBisnis = await prisma.bookCategory.upsert({
+    where: { name: 'Bisnis & Manajemen Teknologi' },
+    update: {},
+    create: {
+      name: 'Bisnis & Manajemen Teknologi',
+      description: 'Manajemen proyek TI, kepemimpinan digital, dan transformasi organisasi.',
+    },
+  });
+
+  const book1 = await prisma.book.upsert({
+    where: { isbn: '978-0132350884' },
+    update: {},
+    create: {
+      categoryId: catCS.id,
+      isbn: '978-0132350884',
+      title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
+      author: 'Robert C. Martin ("Uncle Bob")',
+      publisher: 'Prentice Hall',
+      publishYear: 2008,
+      isDigital: true,
+      digitalUrl: 'https://elibrary.icms.ac.id/reader/clean-code',
+      totalStock: 8,
+      availableStock: 6,
+      coverUrl: 'https://images.unsplash.com/photo-1532012164546-f432f2e3777f?w=400&q=80',
+    },
+  });
+
+  await prisma.book.upsert({
+    where: { isbn: '978-0262033848' },
+    update: {},
+    create: {
+      categoryId: catCS.id,
+      isbn: '978-0262033848',
+      title: 'Introduction to Algorithms, Fourth Edition (CLRS)',
+      author: 'Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein',
+      publisher: 'MIT Press',
+      publishYear: 2022,
+      isDigital: true,
+      digitalUrl: 'https://elibrary.icms.ac.id/reader/clrs-4th',
+      totalStock: 12,
+      availableStock: 9,
+      coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80',
+    },
+  });
+
+  await prisma.book.upsert({
+    where: { isbn: '978-1491950357' },
+    update: {},
+    create: {
+      categoryId: catCS.id,
+      isbn: '978-1491950357',
+      title: 'Designing Data-Intensive Applications',
+      author: 'Martin Kleppmann',
+      publisher: "O'Reilly Media",
+      publishYear: 2017,
+      isDigital: true,
+      digitalUrl: 'https://elibrary.icms.ac.id/reader/ddia',
+      totalStock: 6,
+      availableStock: 5,
+      coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80',
+    },
+  });
+
+  await prisma.book.upsert({
+    where: { isbn: '978-0134610993' },
+    update: {},
+    create: {
+      categoryId: catMath.id,
+      isbn: '978-0134610993',
+      title: 'Discrete Mathematics and Its Applications, 8th Edition',
+      author: 'Kenneth H. Rosen',
+      publisher: 'McGraw-Hill Education',
+      publishYear: 2019,
+      isDigital: true,
+      digitalUrl: 'https://elibrary.icms.ac.id/reader/discrete-math',
+      totalStock: 15,
+      availableStock: 14,
+      coverUrl: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400&q=80',
+    },
+  });
+
+  // Library member for student
+  const libMember = await prisma.libraryMember.upsert({
+    where: { userId: student.userId },
+    update: {},
+    create: {
+      userId: student.userId,
+      memberCode: 'LIB-MHS-202601001',
+    },
+  });
+
+  await prisma.bookLoan.create({
+    data: {
+      bookId: book1.id,
+      memberId: libMember.id,
+      borrowDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // due in 10 days
+      status: 'BORROWED',
+      penaltyFee: 0,
+    },
+  }).catch(() => {});
+
+  console.log('✓ Seeded Digital Library categories, catalog books, member and active loans.');
+
   console.log('===========================================================');
   console.log('Database Seeding Complete!');
   console.log('===========================================================');

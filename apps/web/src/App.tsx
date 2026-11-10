@@ -6,6 +6,13 @@ import { MainLayout } from './layouts/MainLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
+import { KrsPage } from './pages/KrsPage';
+import { KhsPage } from './pages/KhsPage';
+import { CoursesPage } from './pages/CoursesPage';
+import { AttendancePage } from './pages/AttendancePage';
+import { LmsPage } from './pages/LmsPage';
+import { FinancePage } from './pages/FinancePage';
+import { LibraryPage } from './pages/LibraryPage';
 import { ModulePlaceholderPage } from './pages/ModulePlaceholderPage';
 import { Loader2 } from 'lucide-react';
 
@@ -55,10 +62,17 @@ export const App: React.FC = () => {
               {/* User Management Route */}
               <Route path="sistem/pengguna" element={<UsersPage />} />
 
-              {/* Academic Routes */}
+              {/* Academic Core Routes */}
+              <Route path="akademik/krs" element={<KrsPage />} />
+              <Route path="akademik/khs" element={<KhsPage />} />
+              <Route path="akademik/mata-kuliah" element={<CoursesPage />} />
               <Route path="akademik/*" element={<ModulePlaceholderPage />} />
 
               {/* Operational Routes */}
+              <Route path="operasional/presensi" element={<AttendancePage />} />
+              <Route path="operasional/lms" element={<LmsPage />} />
+              <Route path="operasional/keuangan" element={<FinancePage />} />
+              <Route path="operasional/perpustakaan" element={<LibraryPage />} />
               <Route path="operasional/*" element={<ModulePlaceholderPage />} />
 
               {/* Management Routes */}
