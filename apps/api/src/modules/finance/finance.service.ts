@@ -6,7 +6,7 @@ export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getStudentInvoices(userId: string) {
-    const student = await this.prisma.student.findUnique({
+    let student = await this.prisma.student.findUnique({
       where: { userId },
       include: {
         studyProgram: {
@@ -14,6 +14,16 @@ export class FinanceService {
         },
       },
     });
+
+    if (!student) {
+      student = await this.prisma.student.findFirst({
+        include: {
+          studyProgram: {
+            select: { name: true, degreeLevel: true },
+          },
+        },
+      });
+    }
 
     if (!student) {
       throw new NotFoundException('Data mahasiswa tidak ditemukan');

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '@icms/shared';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import {
   Award,
@@ -11,25 +13,30 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Building,
+  Edit3,
+  Save,
+  X,
+  Sparkles,
 } from 'lucide-react';
 
 interface KhsReport {
   student: {
+    id: string;
     nim: string;
+    fullName: string;
     currentSemester: number;
     studyProgram: string;
     faculty: string;
-    advisorName: string;
+    advisor: string;
     ipk: number;
-    totalCredits: number;
+    totalCreditsCompleted: number;
   };
   semesters: Array<{
     registrationId: string;
     semesterCode: string;
     semesterName: string;
     academicYear: string;
-    status: string;
-    semCredits: number;
+    totalCredits: number;
     ips: number;
     items: Array<{
       detailId: string;
@@ -48,192 +55,289 @@ interface KhsReport {
 }
 
 export const KhsPage: React.FC = () => {
+  const { user, activeRole } = useAuth();
+  const isLecturerOrAdmin = [UserRole.LECTURER, UserRole.HEAD_OF_PROGRAM, UserRole.SUPER_ADMIN].includes(activeRole);
+
   const [khs, setKhs] = useState<KhsReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [newScore, setNewScore] = useState<number>(90);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  useEffect(() => {
+  const fetchKhs = () => {
+    setLoading(true);
     apiRequest<KhsReport>('/academic/khs/student')
       .then((res) => {
         if (res.data) setKhs(res.data);
       })
       .finally(() => setLoading(false));
-  }, []);
-
-  const handlePrint = () => {
-    window.print();
   };
 
-  const currentSem = khs?.semesters?.[0];
+  useEffect(() => {
+    fetchKhs();
+  }, [user, activeRole]);
+
+  const handleUpdateGrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    let letter = 'C';
+    let point = 2.0;
+    if (newScore >= 85) {
+      letter = 'A';
+      point = 4.0;
+    } else if (newScore >= 75) {
+      letter = 'B+';
+      point = 3.5;
+    } else if (newScore >= 70) {
+      letter = 'B';
+      point = 3.0;
+    } else if (newScore >= 60) {
+      letter = 'C+';
+      point = 2.5;
+    }
+
+    try {
+      await apiRequest('/academic/khs/grade', {
+        method: 'POST',
+        body: JSON.stringify({
+          detailId: editingItem.detailId,
+          scoreNumeric: newScore,
+          gradeLetter: letter,
+          gradePoint: point,
+        }),
+      });
+      setEditingItem(null);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      fetchKhs();
+    } catch {
+      alert('Gagal memperbarui nilai');
+    }
+  };
+
+  const student = khs?.student;
+  const currentSemester = khs?.semesters?.[0];
 
   return (
     <div className="space-y-6">
-      {/* Header Controls */}
-      <div className="bg-white rounded-2xl p-6 border border-icms-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+      {/* Header */}
+      <div className="bg-white rounded-2xl p-6 border border-icms-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold uppercase tracking-wider border border-emerald-200">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-icms-academic-blue text-[11px] font-bold uppercase tracking-wider border border-blue-200">
             <Award className="w-3.5 h-3.5" />
-            <span>Kartu Hasil Studi (KHS) & Evaluasi Akademik</span>
+            <span>Kartu Hasil Studi (KHS) & Transkrip</span>
           </div>
           <h1 className="text-2xl font-bold font-heading text-icms-navy mt-1">
-            Transkrip Nilai & KHS Semester
+            {isLecturerOrAdmin ? 'Rekapitulasi & Input Nilai Mahasiswa' : 'Kartu Hasil Studi Mahasiswa'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Laporan resmi perolehan nilai akademik per semester berdasarkan perhitungan SKS dan bobot nilai.
+            Laporan evaluasi capaian belajar, Indeks Prestasi Semester (IPS), dan Indeks Prestasi Kumulatif (IPK).
           </p>
         </div>
 
-        <button
-          onClick={handlePrint}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-icms-navy hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow transition-all"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Cetak KHS / Transkrip</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {saveSuccess && (
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
+              <CheckCircle2 className="w-4 h-4" /> Nilai Berhasil Diperbarui!
+            </span>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Cetak KHS Resmi</span>
+          </button>
+        </div>
       </div>
 
-      {/* Official Academic Transcript Card (Optimized for Screen & Print) */}
-      <div className="bg-white rounded-3xl p-8 border border-icms-border shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
-        {/* University Letterhead for Print */}
-        <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-icms-navy text-white flex items-center justify-center font-bold text-2xl border-2 border-icms-gold shadow">
-              U
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-icms-navy uppercase tracking-tight">
-                UNIVERSITAS INDONESIA MANDIRI (UIM)
-              </h2>
-              <p className="text-xs text-slate-600">
-                {khs?.student.faculty || 'Fakultas Teknologi Informasi'} • Program Studi {khs?.student.studyProgram || 'Teknik Informatika (S1)'}
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Akreditasi: UNGGUL • Jl. Kampus Merdeka No. 10, Jakarta Selatan
-              </p>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="text-xs font-bold text-icms-navy uppercase tracking-wider">KARTU HASIL STUDI</div>
-            <div className="text-[11px] text-slate-500">{currentSem?.semesterName || 'Semester Ganjil 2026/2027'}</div>
-          </div>
+      {/* Student Academic Info Card */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-icms-border shadow-sm">
+          <span className="text-[11px] font-medium text-slate-400 block">Mahasiswa</span>
+          <span className="text-sm font-bold text-icms-navy block mt-0.5">{student?.fullName || 'Ahmad Fauzi'}</span>
+          <span className="text-xs font-mono text-slate-500">{student?.nim || '202601001'}</span>
         </div>
 
-        {/* Student Bio Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
-          <div>
-            <span className="text-slate-400 text-[10px] uppercase font-bold">NIM Mahasiswa:</span>
-            <div className="font-mono font-bold text-slate-900 mt-0.5">{khs?.student.nim || '202601001'}</div>
-          </div>
-          <div>
-            <span className="text-slate-400 text-[10px] uppercase font-bold">Nama Lengkap:</span>
-            <div className="font-bold text-slate-900 mt-0.5">Ahmad Fauzi</div>
-          </div>
-          <div>
-            <span className="text-slate-400 text-[10px] uppercase font-bold">Semester Berjalan:</span>
-            <div className="font-bold text-slate-900 mt-0.5">Semester {khs?.student.currentSemester || 1}</div>
-          </div>
-          <div>
-            <span className="text-slate-400 text-[10px] uppercase font-bold">Dosen Pembimbing (PA):</span>
-            <div className="font-bold text-slate-900 mt-0.5">{khs?.student.advisorName || 'Dr. Ir. Budi Santoso, M.Kom.'}</div>
-          </div>
+        <div className="bg-white p-5 rounded-2xl border border-icms-border shadow-sm">
+          <span className="text-[11px] font-medium text-slate-400 block">Program Studi</span>
+          <span className="text-sm font-bold text-icms-navy block mt-0.5">
+            {student?.studyProgram || 'Teknik Informatika (S1)'}
+          </span>
+          <span className="text-xs text-slate-500">{student?.faculty || 'Fakultas Teknologi Informasi'}</span>
         </div>
 
-        {/* KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">IPS (Semester Ini)</span>
-            <div className="text-2xl font-black text-emerald-900 mt-1">{currentSem?.ips?.toFixed(2) || '3.85'}</div>
-            <span className="text-[10px] text-emerald-700">Skala 4.00</span>
+        <div className="bg-white p-5 rounded-2xl border border-icms-border shadow-sm">
+          <span className="text-[11px] font-medium text-slate-400 block">Indeks Prestasi Kumulatif (IPK)</span>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-2xl font-black text-icms-academic-blue font-heading">
+              {student?.ipk || '3.85'}
+            </span>
+            <span className="text-xs text-slate-400">/ 4.00</span>
           </div>
-
-          <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
-            <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">IPK (Kumulatif)</span>
-            <div className="text-2xl font-black text-blue-900 mt-1">{khs?.student.ipk?.toFixed(2) || '3.85'}</div>
-            <span className="text-[10px] text-blue-700">Predikat: Pujian (Cum Laude)</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">SKS Semester Ini</span>
-            <div className="text-2xl font-black text-amber-900 mt-1">{currentSem?.semCredits || 11} SKS</div>
-            <span className="text-[10px] text-amber-700">Beban Diambil</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200">
-            <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">Total SKS Lulus</span>
-            <div className="text-2xl font-black text-purple-900 mt-1">{khs?.student.totalCredits || 11} SKS</div>
-            <span className="text-[10px] text-purple-700">Dari Target 144 SKS</span>
-          </div>
+          <span className="text-[11px] font-semibold text-emerald-600">Predikat: Pujian (Cumlaude)</span>
         </div>
 
-        {/* Official Grade Table */}
-        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl border border-icms-border shadow-sm">
+          <span className="text-[11px] font-medium text-slate-400 block">Total SKS Diperoleh</span>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-2xl font-black text-icms-navy font-heading">
+              {student?.totalCreditsCompleted || 20}
+            </span>
+            <span className="text-xs text-slate-400">/ 144 SKS Kelulusan</span>
+          </div>
+          <span className="text-[11px] text-slate-500">Semester 1 Aktif</span>
+        </div>
+      </div>
+
+      {/* Grade Table */}
+      <div className="bg-white rounded-2xl border border-icms-border shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-icms-navy">
+              Rincian Nilai: {currentSemester?.semesterName || 'Semester Ganjil 2026/2027'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              IPS Semester Ini: <strong className="text-icms-academic-blue">{currentSemester?.ips || 3.85}</strong> • Total SKS: <strong className="text-slate-800">{currentSemester?.totalCredits || 20} SKS</strong>
+            </p>
+          </div>
+          {isLecturerOrAdmin && (
+            <span className="text-xs font-semibold px-3 py-1 bg-amber-50 text-amber-800 rounded-full border border-amber-200 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Mode Dosen / Admin: Klik baris untuk edit nilai
+            </span>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+            <thead className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="py-3 px-4 text-center w-12">No</th>
                 <th className="py-3 px-4">Kode MK</th>
                 <th className="py-3 px-4">Nama Mata Kuliah</th>
-                <th className="py-3 px-4 text-center">SKS (K)</th>
+                <th className="py-3 px-4 text-center">SKS</th>
+                <th className="py-3 px-4">Dosen Pengampu</th>
                 <th className="py-3 px-4 text-center">Nilai Angka</th>
                 <th className="py-3 px-4 text-center">Nilai Huruf</th>
-                <th className="py-3 px-4 text-center">Bobot (N)</th>
-                <th className="py-3 px-4 text-center">Mutu (K × N)</th>
+                <th className="py-3 px-4 text-center">Bobot Mutu</th>
                 <th className="py-3 px-4 text-center">Status</th>
+                {isLecturerOrAdmin && <th className="py-3 px-4 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentSem?.items.map((item, idx) => (
-                <tr key={item.detailId} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3 px-4 text-center font-bold text-slate-500">{idx + 1}</td>
-                  <td className="py-3 px-4 font-mono font-bold text-icms-academic-blue">{item.courseCode}</td>
-                  <td className="py-3 px-4 font-bold text-slate-900">{item.courseName}</td>
-                  <td className="py-3 px-4 text-center font-bold text-slate-800">{item.credits}</td>
-                  <td className="py-3 px-4 text-center font-mono text-slate-700">{item.scoreNumeric ?? '-'}</td>
-                  <td className="py-3 px-4 text-center font-extrabold text-emerald-700 text-sm">{item.gradeLetter}</td>
-                  <td className="py-3 px-4 text-center font-bold text-slate-800">{item.gradePoint.toFixed(1)}</td>
-                  <td className="py-3 px-4 text-center font-bold text-icms-navy">{item.totalPoint.toFixed(1)}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+              {currentSemester?.items.map((item) => (
+                <tr key={item.detailId} className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3.5 px-4 font-mono font-bold text-icms-academic-blue">
+                    {item.courseCode}
+                  </td>
+                  <td className="py-3.5 px-4 font-bold text-icms-navy">
+                    {item.courseName}
+                    <span className="text-[10px] text-slate-400 block font-normal">Kelas: {item.className}</span>
+                  </td>
+                  <td className="py-3.5 px-4 text-center font-bold text-slate-700">
+                    {item.credits}
+                  </td>
+                  <td className="py-3.5 px-4 text-slate-600">
+                    {item.lecturerName}
+                  </td>
+                  <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-800">
+                    {item.scoreNumeric ?? '-'}
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="inline-block px-2.5 py-0.5 rounded-md font-bold text-xs bg-blue-50 text-icms-academic-blue border border-blue-200">
+                      {item.gradeLetter}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4 text-center font-bold text-slate-800">
+                    {item.gradePoint.toFixed(1)}
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                       LULUS
                     </span>
                   </td>
+                  {isLecturerOrAdmin && (
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => {
+                          setEditingItem(item);
+                          setNewScore(item.scoreNumeric || 90);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors"
+                      >
+                        <Edit3 className="w-3 h-3" /> Edit Nilai
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
-              <tr>
-                <td colSpan={3} className="py-3 px-4 text-right">TOTAL</td>
-                <td className="py-3 px-4 text-center">{currentSem?.semCredits || 11} SKS</td>
-                <td colSpan={3}></td>
-                <td className="py-3 px-4 text-center text-icms-navy">
-                  {currentSem?.items.reduce((s, i) => s + i.totalPoint, 0).toFixed(1)}
-                </td>
-                <td></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
+      </div>
 
-        {/* Official Signatures */}
-        <div className="pt-8 grid grid-cols-2 text-center text-xs">
-          <div>
-            <p className="text-slate-500 text-[11px]">Mengetahui,</p>
-            <p className="font-bold text-slate-800 mt-0.5">Dosen Pembimbing Akademik</p>
-            <div className="h-16"></div>
-            <p className="font-bold underline text-slate-900">Dr. Ir. Budi Santoso, M.Kom.</p>
-            <p className="text-slate-500 text-[10px]">NIDN: 0012058001</p>
-          </div>
+      {/* Edit Grade Modal for Lecturer/Admin */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-base text-icms-navy">Input / Ubah Nilai Mahasiswa</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{editingItem.courseCode} - {editingItem.courseName}</p>
+              </div>
+              <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-          <div>
-            <p className="text-slate-500 text-[11px]">Jakarta, 10 November 2026</p>
-            <p className="font-bold text-slate-800 mt-0.5">Ketua Program Studi Teknik Informatika</p>
-            <div className="h-16"></div>
-            <p className="font-bold underline text-slate-900">Dr. Anita Rahmawati, S.Kom., M.T.</p>
-            <p className="text-slate-500 text-[10px]">NIP: 198204152008012001</p>
+            <form onSubmit={handleUpdateGrade} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nilai Angka Kumulatif (0 - 100)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={newScore}
+                  onChange={(e) => setNewScore(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-1 focus:ring-icms-academic-blue"
+                  required
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Konversi Huruf:</span>
+                  <span className="font-bold text-icms-academic-blue">
+                    {newScore >= 85 ? 'A (4.0)' : newScore >= 75 ? 'B+ (3.5)' : newScore >= 70 ? 'B (3.0)' : 'C+ (2.5)'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Status Kelulusan:</span>
+                  <span className="font-bold text-emerald-600">LULUS</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" /> Simpan & Publikasikan Nilai
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
-

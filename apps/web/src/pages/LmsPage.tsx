@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '@icms/shared';
 import { StatCard } from '../components/ui/StatCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { 
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export const LmsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const queryClient = useQueryClient();
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'materials' | 'assignments'>('materials');
@@ -39,14 +40,14 @@ export const LmsPage: React.FC = () => {
   const [feedbackInput, setFeedbackInput] = useState<string>('');
 
   const { data: lmsData, isLoading, refetch } = useQuery({
-    queryKey: ['lms-overview'],
+    queryKey: ['lms-overview', activeRole],
     queryFn: async () => {
       const res = await api.get('/lms/overview');
       return res.data;
     },
   });
 
-  const isStudent = lmsData?.roleContext === 'STUDENT';
+  const isStudent = activeRole === UserRole.STUDENT;
   const classes = lmsData?.classes || [];
   
   // Set default selected class once loaded

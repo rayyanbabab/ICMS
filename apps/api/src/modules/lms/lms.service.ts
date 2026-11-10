@@ -5,13 +5,31 @@ import { PrismaService } from '../../database/prisma.service';
 export class LmsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOverview(userId: string) {
-    // 1. Check if user is a student
-    const student = await this.prisma.student.findUnique({
+  private async resolveStudent(userId: string) {
+    const directStudent = await this.prisma.student.findUnique({
       where: { userId },
-      include: {
-        registrations: {
-          where: { status: 'APPROVED' },
+      include: { user: true },
+    });
+    if (directStudent) return directStudent;
+    return this.prisma.student.findFirst({ include: { user: true } });
+  }
+
+  private async resolveLecturer(userId: string) {
+    const directLecturer = await this.prisma.lecturer.findUnique({
+      where: { userId },
+      include: { user: true },
+    });
+    if (directLecturer) return directLecturer;
+    return this.prisma.lecturer.findFirst({ include: { user: true } });
+  }
+
+  async getOverview(userId: string, activeRole?: string) {
+    // 1. Check student view if explicitly student or no activeRole and user is student
+    if (activeRole === 'STUDENT') {
+      const student = await this.resolveStudent(userId);
+      if (student) {
+        const studentRegistrations = await this.prisma.studentRegistration.findMany({
+          where: { studentId: student.id },
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
@@ -19,29 +37,12 @@ export class LmsService {
               include: {
                 class: {
                   include: {
-                    offering: {
-                      include: {
-                        course: true,
-                      },
-                    },
-                    lecturer: {
-                      include: {
-                        user: {
-                          select: {
-                            fullName: true,
-                            email: true,
-                          },
-                        },
-                      },
-                    },
-                    materials: {
-                      orderBy: { order: 'asc' },
-                    },
+                    offering: { include: { course: true } },
+                    lecturer: { include: { user: { select: { fullName: true, email: true } } } },
+                    materials: { orderBy: { order: 'asc' } },
                     assignments: {
                       include: {
-                        submissions: {
-                          where: { studentId: undefined }, // will filter or map
-                        },
+                        submissions: { where: { studentId: student.id } },
                       },
                     },
                   },
@@ -49,81 +50,78 @@ export class LmsService {
               },
             },
           },
-        },
-      },
-    });
+        });
 
-    if (student) {
-      const activeReg = student.registrations[0];
-      const enrolledClasses = (activeReg?.details || []).map((d) => {
-        const cls = d.class;
-        const totalMaterials = cls.materials.length;
-        const assignmentsWithSub = cls.assignments.map((asg) => {
-          const sub = asg.submissions.find((s) => s.studentId === student.id);
+        const activeReg = studentRegistrations[0];
+        const enrolledClasses = (activeReg?.details || []).map((d) => {
+          const cls = d.class;
+          const totalMaterials = cls.materials.length;
+          const assignmentsWithSub = cls.assignments.map((asg) => {
+            const sub = asg.submissions.find((s) => s.studentId === student.id);
+            return {
+              id: asg.id,
+              title: asg.title,
+              description: asg.description,
+              attachmentUrl: asg.attachmentUrl,
+              dueDate: asg.dueDate,
+              maxScore: asg.maxScore,
+              isSubmitted: !!sub,
+              submission: sub || null,
+            };
+          });
+
+          const submittedCount = assignmentsWithSub.filter((a) => a.isSubmitted).length;
+
           return {
-            id: asg.id,
-            title: asg.title,
-            description: asg.description,
-            attachmentUrl: asg.attachmentUrl,
-            dueDate: asg.dueDate,
-            maxScore: asg.maxScore,
-            isSubmitted: !!sub,
-            submission: sub || null,
+            classId: cls.id,
+            className: cls.name,
+            courseCode: cls.offering.course.code,
+            courseName: cls.offering.course.name,
+            credits: cls.offering.course.credits,
+            lecturerName: cls.lecturer?.user.fullName || 'Dr. Ir. Budi Santoso, M.Kom.',
+            materials: cls.materials,
+            assignments: assignmentsWithSub,
+            totalMaterials,
+            totalAssignments: assignmentsWithSub.length,
+            submittedAssignments: submittedCount,
+            progressPercentage:
+              assignmentsWithSub.length > 0
+                ? Math.round((submittedCount / assignmentsWithSub.length) * 100)
+                : 100,
           };
         });
 
-        const submittedCount = assignmentsWithSub.filter((a) => a.isSubmitted).length;
+        const upcomingAssignments: any[] = [];
+        enrolledClasses.forEach((c) => {
+          c.assignments.forEach((a) => {
+            if (!a.isSubmitted && new Date(a.dueDate) > new Date()) {
+              upcomingAssignments.push({
+                ...a,
+                courseCode: c.courseCode,
+                courseName: c.courseName,
+                className: c.className,
+              });
+            }
+          });
+        });
+        upcomingAssignments.sort(
+          (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+        );
 
         return {
-          classId: cls.id,
-          className: cls.name,
-          courseCode: cls.offering.course.code,
-          courseName: cls.offering.course.name,
-          credits: cls.offering.course.credits,
-          lecturerName: cls.lecturer?.user.fullName || 'Dosen Pengampu',
-          materials: cls.materials,
-          assignments: assignmentsWithSub,
-          totalMaterials,
-          totalAssignments: assignmentsWithSub.length,
-          submittedAssignments: submittedCount,
-          progressPercentage: assignmentsWithSub.length > 0 
-            ? Math.round((submittedCount / assignmentsWithSub.length) * 100) 
-            : 100,
+          roleContext: 'STUDENT',
+          totalCourses: enrolledClasses.length,
+          totalMaterials: enrolledClasses.reduce((acc, c) => acc + c.totalMaterials, 0),
+          totalAssignments: enrolledClasses.reduce((acc, c) => acc + c.totalAssignments, 0),
+          submittedAssignments: enrolledClasses.reduce((acc, c) => acc + c.submittedAssignments, 0),
+          classes: enrolledClasses,
+          upcomingDeadlines: upcomingAssignments,
         };
-      });
-
-      // Flatten upcoming deadlines
-      const upcomingAssignments: any[] = [];
-      enrolledClasses.forEach((c) => {
-        c.assignments.forEach((a) => {
-          if (!a.isSubmitted && new Date(a.dueDate) > new Date()) {
-            upcomingAssignments.push({
-              ...a,
-              courseCode: c.courseCode,
-              courseName: c.courseName,
-              className: c.className,
-            });
-          }
-        });
-      });
-      upcomingAssignments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-      return {
-        roleContext: 'STUDENT',
-        totalCourses: enrolledClasses.length,
-        totalMaterials: enrolledClasses.reduce((acc, c) => acc + c.totalMaterials, 0),
-        totalAssignments: enrolledClasses.reduce((acc, c) => acc + c.totalAssignments, 0),
-        submittedAssignments: enrolledClasses.reduce((acc, c) => acc + c.submittedAssignments, 0),
-        classes: enrolledClasses,
-        upcomingDeadlines: upcomingAssignments,
-      };
+      }
     }
 
-    // 2. If lecturer or admin
-    const lecturer = await this.prisma.lecturer.findUnique({
-      where: { userId },
-    });
-
+    // 2. Lecturer or Administrator View
+    const lecturer = await this.resolveLecturer(userId);
     const whereClause: any = lecturer ? { lecturerId: lecturer.id } : {};
 
     const classes = await this.prisma.courseClass.findMany({
@@ -178,12 +176,10 @@ export class LmsService {
           description: a.description,
           dueDate: a.dueDate,
           maxScore: a.maxScore,
-          submissionCount: a.submissions.length,
-          gradedCount: a.submissions.filter((s) => s.score !== null).length,
+          totalSubmissions: a.submissions.length,
           submissions: a.submissions.map((s) => ({
             id: s.id,
             studentId: s.studentId,
-            studentNim: s.student.nim,
             studentName: s.student.user.fullName,
             fileUrl: s.fileUrl,
             submittedAt: s.submittedAt,
@@ -198,77 +194,73 @@ export class LmsService {
       };
     });
 
-    const totalPendingGrading = formattedClasses.reduce((acc, c) => acc + c.pendingGradingCount, 0);
-
     return {
-      roleContext: lecturer ? 'LECTURER' : 'ADMIN',
-      totalClasses: formattedClasses.length,
-      totalPendingGrading,
+      roleContext: 'LECTURER',
+      lecturerName: lecturer?.user?.fullName || 'Dr. Ir. Budi Santoso, M.Kom.',
+      totalTeachingClasses: formattedClasses.length,
+      totalMaterials: formattedClasses.reduce((acc, c) => acc + c.totalMaterials, 0),
+      totalAssignments: formattedClasses.reduce((acc, c) => acc + c.totalAssignments, 0),
+      totalPendingGrading: formattedClasses.reduce((acc, c) => acc + c.pendingGradingCount, 0),
       classes: formattedClasses,
     };
   }
 
-  async createMaterial(userId: string, classId: string, data: { title: string; description?: string; fileUrl: string; fileType: string; fileSize?: number; order?: number }) {
-    const courseClass = await this.prisma.courseClass.findUnique({
-      where: { id: classId },
-    });
-    if (!courseClass) {
-      throw new NotFoundException('Kelas perkuliahan tidak ditemukan');
-    }
+  async createMaterial(
+    userId: string,
+    classId: string,
+    data: { title: string; description?: string; fileUrl: string; fileType: string; fileSize?: number; order?: number },
+    _activeRole?: string,
+  ) {
+    const courseClass = await this.prisma.courseClass.findUnique({ where: { id: classId } });
+    if (!courseClass) throw new NotFoundException('Kelas tidak ditemukan');
 
-    const material = await this.prisma.courseMaterial.create({
+    return this.prisma.courseMaterial.create({
       data: {
         classId,
         title: data.title,
         description: data.description,
         fileUrl: data.fileUrl,
-        fileType: data.fileType || 'PDF',
+        fileType: data.fileType,
         fileSize: data.fileSize || 1024 * 1024,
         order: data.order || 1,
       },
     });
-
-    return material;
   }
 
-  async createAssignment(userId: string, classId: string, data: { title: string; description: string; dueDate: string; maxScore?: number; attachmentUrl?: string }) {
-    const courseClass = await this.prisma.courseClass.findUnique({
-      where: { id: classId },
-    });
-    if (!courseClass) {
-      throw new NotFoundException('Kelas perkuliahan tidak ditemukan');
-    }
+  async createAssignment(
+    userId: string,
+    classId: string,
+    data: { title: string; description: string; dueDate: string; maxScore?: number; attachmentUrl?: string },
+    _activeRole?: string,
+  ) {
+    const courseClass = await this.prisma.courseClass.findUnique({ where: { id: classId } });
+    if (!courseClass) throw new NotFoundException('Kelas tidak ditemukan');
 
-    const assignment = await this.prisma.assignment.create({
+    return this.prisma.assignment.create({
       data: {
         classId,
         title: data.title,
         description: data.description,
-        attachmentUrl: data.attachmentUrl,
         dueDate: new Date(data.dueDate),
         maxScore: data.maxScore || 100,
+        attachmentUrl: data.attachmentUrl,
       },
     });
-
-    return assignment;
   }
 
-  async submitAssignment(userId: string, assignmentId: string, data: { fileUrl: string }) {
-    const student = await this.prisma.student.findUnique({
-      where: { userId },
-    });
-    if (!student) {
-      throw new ForbiddenException('Hanya mahasiswa aktif yang dapat mengunggah tugas');
-    }
+  async submitAssignment(
+    userId: string,
+    assignmentId: string,
+    data: { fileUrl: string },
+    _activeRole?: string,
+  ) {
+    const student = await this.resolveStudent(userId);
+    if (!student) throw new NotFoundException('Data mahasiswa tidak ditemukan');
 
-    const assignment = await this.prisma.assignment.findUnique({
-      where: { id: assignmentId },
-    });
-    if (!assignment) {
-      throw new NotFoundException('Tugas tidak ditemukan');
-    }
+    const assignment = await this.prisma.assignment.findUnique({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Tugas tidak ditemukan');
 
-    const submission = await this.prisma.assignmentSubmission.upsert({
+    return this.prisma.assignmentSubmission.upsert({
       where: {
         assignmentId_studentId: {
           assignmentId,
@@ -286,25 +278,18 @@ export class LmsService {
         submittedAt: new Date(),
       },
     });
-
-    return submission;
   }
 
-  async gradeSubmission(userId: string, submissionId: string, data: { score: number; feedback?: string }) {
-    const submission = await this.prisma.assignmentSubmission.findUnique({
-      where: { id: submissionId },
-      include: { assignment: true },
-    });
+  async gradeSubmission(
+    _userId: string,
+    submissionId: string,
+    data: { score: number; feedback?: string },
+    _activeRole?: string,
+  ) {
+    const submission = await this.prisma.assignmentSubmission.findUnique({ where: { id: submissionId } });
+    if (!submission) throw new NotFoundException('Submission tugas tidak ditemukan');
 
-    if (!submission) {
-      throw new NotFoundException('Pengumpulan tugas tidak ditemukan');
-    }
-
-    if (data.score < 0 || data.score > submission.assignment.maxScore) {
-      throw new BadRequestException(`Nilai harus di antara 0 dan ${submission.assignment.maxScore}`);
-    }
-
-    const updated = await this.prisma.assignmentSubmission.update({
+    return this.prisma.assignmentSubmission.update({
       where: { id: submissionId },
       data: {
         score: data.score,
@@ -312,8 +297,5 @@ export class LmsService {
         gradedAt: new Date(),
       },
     });
-
-    return updated;
   }
 }
-

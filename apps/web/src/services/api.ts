@@ -19,6 +19,7 @@ export async function apiRequest<T = any>(
   options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
   const token = localStorage.getItem('icms_access_token');
+  const activeRole = localStorage.getItem('icms_active_role');
   const headers = new Headers(options.headers || {});
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -27,6 +28,10 @@ export async function apiRequest<T = any>(
 
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (activeRole && !headers.has('X-Active-Role')) {
+    headers.set('X-Active-Role', activeRole);
   }
 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -81,4 +86,3 @@ export const api = {
     return apiRequest<T>(endpoint, { method: 'DELETE' });
   },
 };
-

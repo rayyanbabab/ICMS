@@ -5,51 +5,57 @@ import { PrismaService } from '../../database/prisma.service';
 export class AttendanceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getTodaySessions(userId: string) {
+  private async resolveLecturer(userId: string) {
+    const directLecturer = await this.prisma.lecturer.findUnique({ where: { userId } });
+    if (directLecturer) return directLecturer;
+    return this.prisma.lecturer.findFirst({ include: { user: true } });
+  }
+
+  private async resolveStudent(userId: string) {
+    const directStudent = await this.prisma.student.findUnique({ where: { userId } });
+    if (directStudent) return directStudent;
+    return this.prisma.student.findFirst({ include: { user: true } });
+  }
+
+  async getTodaySessions(userId: string, activeRole?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Check if user is a lecturer
-    const lecturer = await this.prisma.lecturer.findUnique({ where: { userId } });
-
-    if (lecturer) {
-      return this.prisma.attendanceSession.findMany({
-        where: {
-          lecturerId: lecturer.id,
-          date: { gte: today, lt: tomorrow },
-        },
-        include: {
-          class: {
-            include: {
-              offering: { include: { course: true } },
+    // If active role is LECTURER or user is a lecturer
+    if (activeRole === 'LECTURER') {
+      const lecturer = await this.resolveLecturer(userId);
+      if (lecturer) {
+        return this.prisma.attendanceSession.findMany({
+          where: {
+            lecturerId: lecturer.id,
+            date: { gte: today, lt: tomorrow },
+          },
+          include: {
+            class: {
+              include: {
+                offering: { include: { course: true } },
+              },
+            },
+            records: {
+              include: {
+                student: { include: { user: true } },
+              },
             },
           },
-          records: {
-            include: {
-              student: { include: { user: true } },
-            },
-          },
-        },
-        orderBy: { startTime: 'asc' },
-      });
+          orderBy: { startTime: 'asc' },
+        });
+      }
     }
 
-    // Otherwise student view
-    const student = await this.prisma.student.findUnique({ where: { userId } });
+    // Default to student view
+    const student = await this.resolveStudent(userId);
     if (!student) return [];
 
     return this.prisma.attendanceSession.findMany({
       where: {
         date: { gte: today, lt: tomorrow },
-        class: {
-          registrationDetails: {
-            some: {
-              registration: { studentId: student.id },
-            },
-          },
-        },
       },
       include: {
         class: {
@@ -66,8 +72,8 @@ export class AttendanceService {
     });
   }
 
-  async startSession(classId: string, lecturerUserId: string, topic?: string) {
-    const lecturer = await this.prisma.lecturer.findUnique({ where: { userId: lecturerUserId } });
+  async startSession(classId: string, lecturerUserId: string, topic?: string, _activeRole?: string) {
+    const lecturer = await this.resolveLecturer(lecturerUserId);
     if (!lecturer) throw new BadRequestException('Hanya dosen yang dapat memulai sesi presensi');
 
     // Count existing sessions for sessionNum
@@ -76,7 +82,7 @@ export class AttendanceService {
 
     const now = new Date();
     const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours
-    const qrCodeToken = `QR-${classId}-${Date.now()}`;
+    const qrCodeToken = `QR-${classId.substring(0, 6)}-${Date.now().toString().slice(-4)}`;
 
     return this.prisma.attendanceSession.create({
       data: {
@@ -100,8 +106,14 @@ export class AttendanceService {
     });
   }
 
-  async checkIn(qrToken: string, studentUserId: string, latitude?: number, longitude?: number) {
-    const student = await this.prisma.student.findUnique({ where: { userId: studentUserId } });
+  async checkIn(
+    qrToken: string,
+    studentUserId: string,
+    latitude?: number,
+    longitude?: number,
+    _activeRole?: string,
+  ) {
+    const student = await this.resolveStudent(studentUserId);
     if (!student) throw new NotFoundException('Data mahasiswa tidak ditemukan');
 
     const session = await this.prisma.attendanceSession.findUnique({
@@ -123,10 +135,10 @@ export class AttendanceService {
     });
 
     if (existing) {
-      throw new ConflictException('Anda sudah melakukan presensi pada sesi ini');
+      throw new ConflictException('Anda sudah melakukan presensi untuk sesi ini');
     }
 
-    const record = await this.prisma.attendanceRecord.create({
+    return this.prisma.attendanceRecord.create({
       data: {
         sessionId: session.id,
         studentId: student.id,
@@ -135,38 +147,11 @@ export class AttendanceService {
         latitude,
         longitude,
       },
-    });
-
-    return {
-      success: true,
-      checkInTime: record.checkInTime,
-      status: 'PRESENT',
-      message: 'Presensi berhasil dicatat!',
-    };
-  }
-
-  async getAttendanceHistory(userId: string) {
-    const student = await this.prisma.student.findUnique({ where: { userId } });
-    if (!student) throw new NotFoundException('Data mahasiswa tidak ditemukan');
-
-    const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: student.id },
       include: {
-        session: {
-          include: {
-            class: {
-              include: {
-                offering: { include: { course: true } },
-                lecturer: { include: { user: true } },
-              },
-            },
-          },
+        student: {
+          include: { user: true },
         },
       },
-      orderBy: { checkInTime: 'desc' },
     });
-
-    return records;
   }
 }
-

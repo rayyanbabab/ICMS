@@ -1,76 +1,80 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
+const sharedFacilitiesList = [
+  {
+    id: 'FAC-01',
+    name: 'Laboratorium Rekayasa Perangkat Lunak & Cloud Computing',
+    code: 'LAB-KOM-01',
+    type: 'LABORATORIUM',
+    building: 'Gedung Rektorat & Lab Terpadu',
+    floor: 3,
+    capacity: 40,
+    equipment: ['40 PC Core i7 32GB RAM', 'Gigabit LAN', 'Proyektor 4K', 'Smart Board', 'AC Dual Unit'],
+    status: 'AVAILABLE',
+    currentBooking: null as any,
+  },
+  {
+    id: 'FAC-02',
+    name: 'Auditorium Utama Universitas Indonesia Mandiri',
+    code: 'AUD-THAMRIN-01',
+    type: 'AUDITORIUM',
+    building: 'Gedung Rektorat Lt. 1',
+    floor: 1,
+    capacity: 500,
+    equipment: ['Sound System Yamaha 10.000W', 'LED Videotron 8x4m', 'Lighting Stage', 'Ruang Transit VIP'],
+    status: 'AVAILABLE',
+    currentBooking: null as any,
+  },
+  {
+    id: 'FAC-03',
+    name: 'Ruang Seminar & Sidang Skripsi Pascasarjana',
+    code: 'R-SIDANG-201',
+    type: 'MEETING_ROOM',
+    building: 'Gedung FTI',
+    floor: 2,
+    capacity: 25,
+    equipment: ['Meja Konferensi', 'Video Conference Camera 360', 'Proyektor HD', 'Mic Delegasi'],
+    status: 'IN_USE',
+    currentBooking: {
+      event: 'Sidang Proposal Tesis S2',
+      organizer: 'Program Studi Magister Informatika',
+      until: '12:00 WIB',
+    },
+  },
+  {
+    id: 'FAC-04',
+    name: 'Laboratorium Jaringan Komputer & IoT',
+    code: 'LAB-NET-02',
+    type: 'LABORATORIUM',
+    building: 'Gedung FTI',
+    floor: 3,
+    capacity: 35,
+    equipment: ['Cisco Router & Switch Rack', 'MikroTik Cloud Core', 'IoT Sensor Kit', 'Logic Analyzer'],
+    status: 'AVAILABLE',
+    currentBooking: null as any,
+  },
+];
+
 @Injectable()
 export class ManagementService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getFacilities() {
-    const classrooms = await this.prisma.classroom.findMany({
-      include: {
-        campus: true,
-      },
-    });
-
-    const facilitiesList = [
-      {
-        id: 'FAC-01',
-        name: 'Laboratorium Rekayasa Perangkat Lunak & Cloud Computing',
-        code: 'LAB-KOM-01',
-        type: 'LABORATORIUM',
-        building: 'Gedung Rektorat & Lab Terpadu',
-        floor: 3,
-        capacity: 40,
-        equipment: ['40 PC Core i7 32GB RAM', 'Gigabit LAN', 'Proyektor 4K', 'Smart Board', 'AC Dual Unit'],
-        status: 'AVAILABLE',
-        currentBooking: null,
-      },
-      {
-        id: 'FAC-02',
-        name: 'Auditorium Utama Universitas Indonesia Mandiri',
-        code: 'AUD-THAMRIN-01',
-        type: 'AUDITORIUM',
-        building: 'Gedung Rektorat Lt. 1',
-        floor: 1,
-        capacity: 500,
-        equipment: ['Sound System Yamaha 10.000W', 'LED Videotron 8x4m', 'Lighting Stage', 'Ruang Transit VIP'],
-        status: 'AVAILABLE',
-        currentBooking: null,
-      },
-      {
-        id: 'FAC-03',
-        name: 'Ruang Seminar & Sidang Skripsi Pascasarjana',
-        code: 'R-SIDANG-201',
-        type: 'MEETING_ROOM',
-        building: 'Gedung FTI',
-        floor: 2,
-        capacity: 25,
-        equipment: ['Meja Konferensi', 'Video Conference Camera 360', 'Proyektor HD', 'Mic Delegasi'],
-        status: 'IN_USE',
-        currentBooking: {
-          event: 'Sidang Proposal Tesis S2',
-          organizer: 'Program Studi Magister Informatika',
-          until: '12:00 WIB',
-        },
-      },
-      {
-        id: 'FAC-04',
-        name: 'Laboratorium Jaringan Komputer & IoT',
-        code: 'LAB-NET-02',
-        type: 'LABORATORIUM',
-        building: 'Gedung FTI',
-        floor: 3,
-        capacity: 35,
-        equipment: ['Cisco Router & Switch Rack', 'MikroTik Cloud Core', 'IoT Sensor Kit', 'Logic Analyzer'],
-        status: 'AVAILABLE',
-        currentBooking: null,
-      },
-    ];
-
-    return facilitiesList;
+    return sharedFacilitiesList;
   }
 
   async bookFacility(userId: string, facilityId: string, data: { eventName: string; date: string; startTime: string; endTime: string }) {
+    const fac = sharedFacilitiesList.find((f) => f.id === facilityId);
+    if (fac) {
+      fac.status = 'IN_USE';
+      fac.currentBooking = {
+        event: data.eventName,
+        organizer: 'Civitas Akademika ICMS',
+        until: `${data.endTime} WIB (${data.date})`,
+      };
+    }
+
     return {
       success: true,
       bookingId: `BKG-${Date.now().toString().slice(-6)}`,

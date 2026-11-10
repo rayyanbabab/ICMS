@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '@icms/shared';
 import { StatCard } from '../components/ui/StatCard';
 import { 
   FileText, 
@@ -15,12 +16,18 @@ import {
   QrCode, 
   ShieldCheck,
   Building2,
-  Calendar
+  Calendar,
+  Check,
+  X,
+  AlertCircle
 } from 'lucide-react';
 
 export const AdministrationLettersPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const queryClient = useQueryClient();
+  const isBaakOrAdmin = [UserRole.ACADEMIC_ADMIN, UserRole.SUPER_ADMIN].includes(activeRole);
+
+  const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
   const [selectedLetter, setSelectedLetter] = useState<any>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -30,7 +37,7 @@ export const AdministrationLettersPage: React.FC = () => {
   const [purposeInput, setPurposeInput] = useState('');
 
   const { data: adminLettersData, isLoading, refetch } = useQuery({
-    queryKey: ['administration-letters'],
+    queryKey: ['administration-letters', activeRole],
     queryFn: async () => {
       const res = await api.get('/academic/letters');
       return res.data;
@@ -51,6 +58,16 @@ export const AdministrationLettersPage: React.FC = () => {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async ({ letterId, isApproved }: { letterId: string; isApproved: boolean }) => {
+      const res = await api.post(`/academic/letters/${letterId}/approve`, { isApproved });
+      return res.data;
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
   const handleRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     requestMutation.mutate({
@@ -61,6 +78,9 @@ export const AdministrationLettersPage: React.FC = () => {
 
   const letters: any[] = adminLettersData?.letters || [];
   const student = adminLettersData?.student;
+
+  const pendingCount = letters.filter((l) => l.status === 'PENDING').length;
+  const displayedLetters = activeTab === 'pending' ? letters.filter((l) => l.status === 'PENDING') : letters;
 
   return (
     <div className="space-y-6">
@@ -74,10 +94,12 @@ export const AdministrationLettersPage: React.FC = () => {
             <span className="text-xs text-slate-300 font-medium">Biro Administrasi Akademik & Kemahasiswaan (BAAK)</span>
           </div>
           <h1 className="text-2xl font-bold font-heading tracking-tight">
-            Layanan Surat Keterangan Mahasiswa
+            {isBaakOrAdmin ? 'Loket Verifikasi & Pengesahan Surat BAAK' : 'Layanan Surat Keterangan Mahasiswa'}
           </h1>
           <p className="text-sm text-slate-300 mt-1 max-w-xl">
-            Pengajuan dan penerbitan surat keterangan aktif kuliah, izin riset tugas akhir, dan rekomendasi magang ber-barcode digital terverifikasi.
+            {isBaakOrAdmin
+              ? 'Verifikasi permohonan surat mahasiswa, pengesahan tanda tangan elektronik, dan penerbitan nomor SK resmi.'
+              : 'Pengajuan dan penerbitan surat keterangan aktif kuliah, izin riset tugas akhir, dan rekomendasi magang ber-barcode digital terverifikasi.'}
           </p>
         </div>
 
@@ -94,12 +116,20 @@ export const AdministrationLettersPage: React.FC = () => {
       {/* KPI Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
-          title="Total Surat Terbit"
+          title="Total Surat Terdaftar"
           value={letters.length}
           subtitle="Arsip Dokumen Resmi"
           icon={FileText}
           iconBg="bg-blue-50"
           iconColor="text-icms-academic-blue"
+        />
+        <StatCard
+          title="Menunggu Verifikasi"
+          value={pendingCount}
+          subtitle="Antrean Loket BAAK"
+          icon={Clock}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
         />
         <StatCard
           title="Verifikasi Digital"
@@ -108,14 +138,6 @@ export const AdministrationLettersPage: React.FC = () => {
           icon={QrCode}
           iconBg="bg-emerald-50"
           iconColor="text-emerald-600"
-        />
-        <StatCard
-          title="Waktu Penerbitan"
-          value="Instan (< 1 Mnt)"
-          subtitle="Validasi Status Mahasiswa"
-          icon={Clock}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
         />
         <StatCard
           title="Keabsahan Dokumen"
@@ -127,120 +149,178 @@ export const AdministrationLettersPage: React.FC = () => {
         />
       </div>
 
+      {/* Tab Filter for BAAK / Admin */}
+      {isBaakOrAdmin && (
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'all'
+                ? 'bg-icms-academic-blue text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Semua Surat ({letters.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'pending'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <span>Perlu Pengesahan BAAK</span>
+            {pendingCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-white text-amber-700 font-extrabold">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Letters List Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-base text-icms-navy">Daftar Dokumen Surat Resmi Anda</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Dokumen surat yang telah disetujui dapat diunduh dan dicetak kapan saja.</p>
+            <h3 className="font-bold text-base text-icms-navy">
+              {isBaakOrAdmin ? 'Daftar Seluruh Permohonan Surat Masuk' : 'Daftar Dokumen Surat Resmi Anda'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Dokumen surat yang telah disahkan dapat diunduh dan dicetak ber-barcode resmi.</p>
           </div>
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
-            {letters.length} Dokumen
+            {displayedLetters.length} Dokumen
           </span>
         </div>
 
         <div className="divide-y divide-slate-100">
-          {letters.map((ltr) => (
-            <div key={ltr.id} className="p-6 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                    No: {ltr.letterNumber}
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> DISETUJUI BAAK
-                  </span>
+          {displayedLetters.map((ltr) => {
+            const isApproved = ltr.status === 'APPROVED';
+            return (
+              <div key={ltr.id} className="p-6 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                      No: {ltr.letterNumber}
+                    </span>
+                    {isApproved ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> DISETUJUI BAAK
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> MENUNGGU VERIFIKASI BAAK
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="font-bold text-base text-slate-900">{ltr.title}</h4>
+                  <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Pemohon: <strong className="text-slate-800">{ltr.studentName}</strong> ({ltr.studentNim})</span>
+                    <span>Prodi: <strong className="text-slate-800">{ltr.studyProgram}</strong></span>
+                    <span>Peruntukan: <strong className="text-slate-800">{ltr.purpose}</strong></span>
+                  </div>
+
+                  <div className="text-xs text-slate-400 flex items-center gap-4 pt-1">
+                    <span>Diajukan: {ltr.requestDate}</span>
+                    {ltr.approvedDate && <span>Disahkan: {ltr.approvedDate}</span>}
+                    {ltr.signedBy && <span>Penandatangan: {ltr.signedBy}</span>}
+                  </div>
                 </div>
 
-                <h4 className="font-bold text-base text-slate-900">{ltr.title}</h4>
-                <p className="text-xs text-slate-600">Peruntukan: <strong className="text-slate-800">{ltr.purpose}</strong></p>
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* BAAK Approval Actions */}
+                  {isBaakOrAdmin && !isApproved && (
+                    <button
+                      onClick={() => approveMutation.mutate({ letterId: ltr.id, isApproved: true })}
+                      className="px-3 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Sahkan Surat
+                    </button>
+                  )}
 
-                <div className="text-xs text-slate-400 flex items-center gap-4 pt-1">
-                  <span>Diajukan: {ltr.requestDate}</span>
-                  <span>Disahkan: {ltr.approvedDate}</span>
-                  <span>Penandatangan: {ltr.signedBy}</span>
+                  {isApproved && (
+                    <button
+                      onClick={() => {
+                        setSelectedLetter(ltr);
+                        setIsPreviewModalOpen(true);
+                      }}
+                      className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-2"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Cetak Kop Surat
+                    </button>
+                  )}
                 </div>
               </div>
+            );
+          })}
 
-              <div className="shrink-0 flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedLetter(ltr);
-                    setIsPreviewModalOpen(true);
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Buka & Cetak Surat
-                </button>
-              </div>
+          {displayedLetters.length === 0 && (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              Tidak ada dokumen surat pada kategori ini.
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* REQUEST MODAL */}
+      {/* New Letter Request Modal */}
       {isRequestModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900">Pengajuan Surat Keterangan Digital</h3>
-              <button 
-                onClick={() => setIsRequestModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-base text-icms-navy">Formulir Permohonan Surat Mahasiswa</h3>
+              <button onClick={() => setIsRequestModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleRequestSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleRequestSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Jenis Surat</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Dokumen Surat</label>
                 <select
                   value={letterType}
                   onChange={(e) => setLetterType(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-icms-academic-blue"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-1 focus:ring-icms-academic-blue"
                 >
-                  <option value="AKTIF_KULIAH">Surat Keterangan Mahasiswa Aktif Kuliah</option>
-                  <option value="PENGANTAR_RISET">Surat Pengantar Riset & Skripsi Lapangan</option>
-                  <option value="REKOMENDASI_MAGANG">Surat Rekomendasi Magang MBKM Industri</option>
+                  <option value="AKTIF_KULIAH">Surat Keterangan Aktif Kuliah (SK-AK)</option>
+                  <option value="PENGANTAR_RISET">Surat Pengantar Riset & Skripsi</option>
+                  <option value="REKOMENDASI_MAGANG">Surat Rekomendasi Magang MBKM</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Keperluan / Instansi Tujuan</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tujuan / Keperluan Surat</label>
                 <textarea
-                  rows={3}
-                  required
-                  placeholder="Contoh: Pengajuan Beasiswa Pendidikan / Tunjangan Gaji Orang Tua ke PT PLN Persero..."
                   value={purposeInput}
                   onChange={(e) => setPurposeInput(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-icms-academic-blue"
+                  placeholder="Contoh: Pengajuan Tunjangan Gaji Orang Tua (PNS), Persyaratan Beasiswa, Izin Penelitian di Lembaga..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-1 focus:ring-icms-academic-blue"
+                  required
                 />
               </div>
 
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Penerbitan Otomatis Terverifikasi
-                </div>
-                <p>
-                  Sistem ICMS memvalidasi status registrasi semester aktif Anda secara real-time dan langsung menerbitkan dokumen resmi ber-barcode verifikasi BAAK.
-                </p>
+              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 text-[11px] text-blue-900 space-y-1">
+                <p className="font-bold">Verifikasi Identitas Mahasiswa:</p>
+                <p>Nama: {student?.name || 'Ahmad Fauzi'} • NIM: {student?.nim || '202601001'}</p>
+                <p>Status: Mahasiswa Aktif Semester 1 (Ganjil 2026/2027)</p>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsRequestModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={requestMutation.isPending}
-                  className="px-5 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs flex items-center gap-1.5"
                 >
-                  {requestMutation.isPending ? 'Memproses...' : 'Ajukan & Terbitkan'}
+                  <Send className="w-3.5 h-3.5" /> Ajukan ke Loket BAAK
                 </button>
               </div>
             </form>
@@ -248,93 +328,76 @@ export const AdministrationLettersPage: React.FC = () => {
         </div>
       )}
 
-      {/* OFFICIAL LETTER PRINT PREVIEW MODAL */}
+      {/* Official Letter Preview & Print Modal */}
       {isPreviewModalOpen && selectedLetter && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 my-8 space-y-6">
-            {/* Action Bar */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 no-print">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Preview Dokumen Resmi BAAK</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <Printer className="w-4 h-4" /> Cetak / Unduh PDF
-                </button>
-                <button
-                  onClick={() => setIsPreviewModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base"
-                >
-                  ✕
-                </button>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 text-slate-800">
+            {/* Kop Surat Resmi */}
+            <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1 relative">
+              <div className="text-xs font-bold tracking-widest text-slate-500 uppercase">KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</div>
+              <h2 className="text-lg font-black text-icms-navy uppercase tracking-wider">UNIVERSITAS INDONESIA MANDIRI</h2>
+              <p className="text-[11px] text-slate-600">Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan • Telp: (021) 5892-0001 • info@icms.ac.id</p>
+            </div>
+
+            {/* Nomor & Judul */}
+            <div className="text-center space-y-1">
+              <h3 className="font-bold text-base underline uppercase tracking-wide">{selectedLetter.title}</h3>
+              <p className="text-xs font-mono font-medium text-slate-600">Nomor: {selectedLetter.letterNumber}</p>
+            </div>
+
+            {/* Isi Surat */}
+            <div className="text-xs leading-relaxed space-y-3 text-justify">
+              <p>Yang bertanda tangan di bawah ini, Kepala Biro Administrasi Akademik dan Kemahasiswaan (BAAK) Universitas Indonesia Mandiri, dengan ini menerangkan bahwa:</p>
+              
+              <div className="pl-6 space-y-1 font-medium">
+                <div className="grid grid-cols-3"><span>Nama Mahasiswa</span><span className="col-span-2">: <strong>{selectedLetter.studentName}</strong></span></div>
+                <div className="grid grid-cols-3"><span>Nomor Induk Mahasiswa (NIM)</span><span className="col-span-2 font-mono">: {selectedLetter.studentNim}</span></div>
+                <div className="grid grid-cols-3"><span>Program Studi</span><span className="col-span-2">: {selectedLetter.studyProgram}</span></div>
+                <div className="grid grid-cols-3"><span>Fakultas</span><span className="col-span-2">: {selectedLetter.faculty}</span></div>
+                <div className="grid grid-cols-3"><span>Semester / Status</span><span className="col-span-2">: Semester Ganjil 2026/2027 (Aktif)</span></div>
+              </div>
+
+              <p>
+                Adalah benar-benar mahasiswa terdaftar aktif pada Tahun Akademik 2026/2027 pada Universitas Indonesia Mandiri. Surat keterangan ini diterbitkan secara sah untuk keperluan: <strong>{selectedLetter.purpose}</strong>.
+              </p>
+
+              <p>Demikian surat keterangan ini dibuat dengan sebenar-benarnya untuk dipergunakan sebagaimana mestinya.</p>
+            </div>
+
+            {/* Tanda Tangan & QR */}
+            <div className="flex items-end justify-between pt-4 border-t border-slate-100">
+              <div className="text-center space-y-1">
+                <div className="w-20 h-20 bg-slate-50 border border-slate-300 rounded-lg flex items-center justify-center p-1">
+                  <QrCode className="w-16 h-16 text-slate-800" />
+                </div>
+                <span className="text-[9px] font-mono block text-slate-400">{selectedLetter.verificationCode}</span>
+                <span className="text-[9px] font-bold text-emerald-600 block">TTE Sah Terverifikasi</span>
+              </div>
+
+              <div className="text-right text-xs space-y-1">
+                <p>Jakarta, {selectedLetter.approvedDate || selectedLetter.requestDate}</p>
+                <p className="font-medium text-slate-500">Kepala Biro Administrasi Akademik (BAAK)</p>
+                <div className="h-12 flex items-center justify-end">
+                  <span className="font-serif italic font-bold text-blue-900 border-b border-blue-900 pb-0.5">Dr. Hendra Wijaya, M.Pd.</span>
+                </div>
+                <p className="font-mono text-[10px] text-slate-400">NIP. 19750819 200212 1 003</p>
               </div>
             </div>
 
-            {/* Official Letter Document Canvas */}
-            <div className="border border-slate-300 p-8 rounded-xl bg-white shadow-inner space-y-6 font-serif">
-              {/* Kop Surat */}
-              <div className="text-center border-b-2 border-black pb-4 space-y-1">
-                <h2 className="text-xl font-bold font-heading text-slate-950 tracking-wider">UNIVERSITAS INDONESIA MANDIRI</h2>
-                <h3 className="text-sm font-semibold tracking-wide text-slate-800">BIRO ADMINISTRASI AKADEMIK & KEMAHASISWAAN (BAAK)</h3>
-                <p className="text-[11px] text-slate-600 font-sans">
-                  Jl. M.H. Thamrin No. 88, Menteng, Jakarta Pusat 10350 • Telp: (021) 390-1234 • Email: baak@icms.ac.id
-                </p>
-              </div>
-
-              {/* Letter Heading */}
-              <div className="text-center space-y-1">
-                <h4 className="text-base font-bold underline uppercase tracking-wide">
-                  {selectedLetter.title}
-                </h4>
-                <p className="text-xs font-sans text-slate-600 font-mono">Nomor: {selectedLetter.letterNumber}</p>
-              </div>
-
-              {/* Body Content */}
-              <div className="text-xs text-slate-800 space-y-3 leading-relaxed font-sans">
-                <p>
-                  Yang bertanda tangan di bawah ini, Kepala Biro Administrasi Akademik & Kemahasiswaan (BAAK) Universitas Indonesia Mandiri menerangkan dengan sesungguhnya bahwa:
-                </p>
-
-                <div className="pl-6 space-y-1.5 py-1 font-sans">
-                  <div className="flex"><span className="w-36 font-semibold">Nama Lengkap</span>: <span>{selectedLetter.studentName}</span></div>
-                  <div className="flex"><span className="w-36 font-semibold">NIM</span>: <span>{selectedLetter.studentNim}</span></div>
-                  <div className="flex"><span className="w-36 font-semibold">Program Studi</span>: <span>{selectedLetter.studyProgram}</span></div>
-                  <div className="flex"><span className="w-36 font-semibold">Fakultas</span>: <span>{selectedLetter.faculty}</span></div>
-                  <div className="flex"><span className="w-36 font-semibold">Status Akademik</span>: <span className="font-bold text-emerald-700">AKTIF (Semester Ganjil 2026/2027)</span></div>
-                </div>
-
-                <p>
-                  Adalah benar yang bersangkutan merupakan mahasiswa aktif Universitas Indonesia Mandiri Tahun Akademik 2026/2027. Surat keterangan ini diterbitkan untuk dipergunakan sebagai: <strong>{selectedLetter.purpose}</strong>.
-                </p>
-
-                <p>
-                  Demikian surat keterangan ini dibuat dengan sebenar-benarnya untuk dapat dipergunakan sebagaimana mestinya.
-                </p>
-              </div>
-
-              {/* Tanda Tangan & QR Code Verifikasi */}
-              <div className="pt-6 flex justify-between items-end font-sans">
-                <div className="text-center space-y-1">
-                  <div className="w-20 h-20 bg-slate-100 border border-slate-300 rounded-lg flex flex-col items-center justify-center mx-auto p-1">
-                    <QrCode className="w-12 h-12 text-slate-800" />
-                    <span className="text-[8px] font-mono text-slate-500">KODE SAH</span>
-                  </div>
-                  <span className="text-[9px] font-mono text-slate-400">{selectedLetter.verificationCode}</span>
-                </div>
-
-                <div className="text-right text-xs space-y-1">
-                  <p>Jakarta, {new Date(selectedLetter.approvedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                  <p className="font-semibold text-slate-600">Kepala BAAK UIM,</p>
-                  <div className="h-14 flex items-center justify-end">
-                    <span className="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      [Tanda Tangan Elektronik Sah]
-                    </span>
-                  </div>
-                  <p className="font-bold underline text-slate-900">{selectedLetter.signedBy}</p>
-                  <p className="text-[10px] text-slate-500">NIP. 19780412 200312 1 002</p>
-                </div>
-              </div>
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setIsPreviewModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" /> Cetak Dokumen
+              </button>
             </div>
           </div>
         </div>
@@ -342,4 +405,3 @@ export const AdministrationLettersPage: React.FC = () => {
     </div>
   );
 };
-

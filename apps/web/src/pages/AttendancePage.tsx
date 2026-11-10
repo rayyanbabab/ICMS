@@ -15,19 +15,60 @@ import {
   Send,
   Loader2,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 
-export const AttendancePage: React.FC = () => {
-  const { user } = useAuth();
-  const isLecturer = user?.roles?.includes(UserRole.LECTURER);
-  const isStudent = user?.roles?.includes(UserRole.STUDENT);
+interface AttendanceRecord {
+  id: string;
+  status: string;
+  checkInTime: string;
+  student: {
+    nim: string;
+    user: { fullName: string };
+  };
+}
 
-  const [qrToken, setQrToken] = useState('QR-IF101-2026');
+interface AttendanceSession {
+  id: string;
+  topic: string;
+  sessionNum: number;
+  qrCodeToken: string;
+  isOpen: boolean;
+  class: {
+    name: string;
+    offering: { course: { code: string; name: string } };
+    lecturer?: { user: { fullName: string } };
+  };
+  records: AttendanceRecord[];
+}
+
+export const AttendancePage: React.FC = () => {
+  const { user, activeRole } = useAuth();
+  const isLecturer = [UserRole.LECTURER, UserRole.SUPER_ADMIN].includes(activeRole);
+  const isStudent = activeRole === UserRole.STUDENT;
+
+  const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+  const [activeToken, setActiveToken] = useState('QR-IF101-8921');
   const [inputToken, setInputToken] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Local persistent attendees for immediate reactive loop
+  const [attendees, setAttendees] = useState<Array<{ nim: string; name: string; time: string; status: string }>>([
+    { nim: '202601001', name: 'Ahmad Fauzi', time: '08:05 WIB', status: 'PRESENT' },
+    { nim: '202601002', name: 'Rina Salsabila', time: '08:08 WIB', status: 'PRESENT' },
+    { nim: '202601003', name: 'Dimas Setiawan', time: '08:12 WIB', status: 'PRESENT' },
+  ]);
+
+  const handleCreateSession = (e: React.FormEvent) => {
+    e.preventDefault();
+    const generated = `QR-IF101-${Math.floor(1000 + Math.random() * 9000)}`;
+    setActiveToken(generated);
+    setModalOpen(false);
+    setFeedback(`Sesi presensi baru berhasil dibuka! Token Mahasiswa: ${generated}`);
+  };
 
   const handleCheckIn = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +77,18 @@ export const AttendancePage: React.FC = () => {
     setTimeout(() => {
       setCheckedIn(true);
       setLoading(false);
-      setFeedback('Presensi berhasil dicatat! Kehadiran tervalidasi pada pukul 08:05 WIB.');
-    }, 600);
+      setFeedback('Presensi berhasil dicatat! Kehadiran tervalidasi pada pukul ' + new Date().toLocaleTimeString('id-ID') + '.');
+
+      // Add student to shared attendees
+      const studentName = user?.fullName || 'Ahmad Fauzi';
+      const studentNim = '202601001';
+      if (!attendees.some((a) => a.nim === studentNim)) {
+        setAttendees([
+          { nim: studentNim, name: studentName, time: new Date().toLocaleTimeString('id-ID'), status: 'PRESENT' },
+          ...attendees,
+        ]);
+      }
+    }, 500);
   };
 
   return (
@@ -47,13 +98,13 @@ export const AttendancePage: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-icms-academic-blue text-[11px] font-bold uppercase tracking-wider border border-blue-200">
             <Clock className="w-3.5 h-3.5" />
-            <span>Presensi Kuliah Digital (QR Code & Lokasi)</span>
+            <span>Presensi Kuliah Digital (QR Code & Token)</span>
           </div>
           <h1 className="text-2xl font-bold font-heading text-icms-navy mt-1">
-            Manajemen Kehadiran Perkuliahan
+            {isLecturer ? 'Manajemen Sesi Presensi Kelas' : 'Presensi Kehadiran Kuliah'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Sistem presensi terintegrasi backend untuk mencegah absensi ganda dan memvalidasi kehadiran real-time.
+            Sistem presensi terintegrasi real-time antara Dosen dan Mahasiswa berbasis validasi token & QR.
           </p>
         </div>
 
@@ -69,9 +120,14 @@ export const AttendancePage: React.FC = () => {
       </div>
 
       {feedback && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>{feedback}</span>
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{feedback}</span>
+          </div>
+          <button onClick={() => setFeedback(null)} className="text-emerald-700 hover:text-emerald-900">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -79,167 +135,174 @@ export const AttendancePage: React.FC = () => {
       {isStudent && (
         <div className="bg-white rounded-2xl p-6 border border-icms-border shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-icms-navy font-heading flex items-center gap-2">
-              <QrCode className="w-4 h-4 text-emerald-600" />
-              Check-in Presensi Sesi Kuliah Berjalan
-            </h3>
-            <StatusBadge
-              status={checkedIn ? 'PRESENT' : 'PENDING'}
-              label={checkedIn ? 'Sudah Presensi' : 'Sesi Dibuka'}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            <div className="md:col-span-2 space-y-2 text-xs">
-              <div className="font-bold text-slate-900 text-sm">
-                IF101-01 — Algoritma & Pemrograman Dasar
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-icms-academic-blue">
+                <BookOpen className="w-5 h-5" />
               </div>
-              <div className="text-slate-600">
-                Dosen: <strong>Dr. Ir. Budi Santoso, M.Kom.</strong> • Pertemuan ke-8
-              </div>
-              <div className="flex items-center gap-4 text-slate-500 text-[11px] pt-1">
-                <span className="flex items-center gap-1 font-semibold text-slate-700">
-                  <Clock className="w-3.5 h-3.5 text-icms-academic-blue" />
-                  08:00 - 10:30 WIB
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  LAB-KOM-01 (Lab Terpadu Lt. 3)
-                </span>
+              <div>
+                <h3 className="text-sm font-bold text-icms-navy">Kuliah Sedang Berlangsung</h3>
+                <p className="text-xs text-slate-500">IF101 - Algoritma & Pemrograman Lanjut (Kelas IF-1A)</p>
               </div>
             </div>
+            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200 animate-pulse">
+              Sesi Presensi Aktif
+            </span>
+          </div>
 
-            <div>
-              {!checkedIn ? (
-                <form onSubmit={handleCheckIn} className="space-y-2">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Masukkan Token QR Kelas:
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: QR-IF101-2026"
-                      value={inputToken}
-                      onChange={(e) => setInputToken(e.target.value)}
-                      className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-sm"
-                    >
-                      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Kirim'}
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-slate-400">
-                    Atau scan QR yang ditampilkan dosen di layar proyektor.
-                  </span>
-                </form>
-              ) : (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center text-xs text-emerald-800 font-bold flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Kehadiran Selesai Diverifikasi!</span>
+          {!checkedIn ? (
+            <form onSubmit={handleCheckIn} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Masukkan Token Presensi Kelas (Diberikan oleh Dosen):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputToken}
+                    onChange={(e) => setInputToken(e.target.value.toUpperCase())}
+                    placeholder={`Contoh: ${activeToken}`}
+                    className="flex-1 px-4 py-2 font-mono font-bold text-sm tracking-wider uppercase border border-slate-300 rounded-xl focus:ring-1 focus:ring-icms-academic-blue"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2 bg-icms-academic-blue hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+                  >
+                    {loading ? 'Validasi...' : 'Check-in'}
+                  </button>
                 </div>
-              )}
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tips Pengujian: Gunakan token <strong className="text-slate-700 font-mono">{activeToken}</strong>
+                </p>
+              </div>
+            </form>
+          ) : (
+            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-emerald-900">Kehadiran Anda Telah Terverifikasi!</h4>
+                <p className="text-[11px] text-emerald-700 mt-0.5">
+                  Status: <strong>HADIR</strong> • Waktu: {new Date().toLocaleTimeString('id-ID')} • Lokasi: R-Lab-01
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lecturer / Monitor Active Session Card */}
+      {isLecturer && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Active QR Token Display */}
+          <div className="bg-white p-6 rounded-2xl border border-icms-border shadow-sm flex flex-col items-center text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <QrCode className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Token Presensi Aktif</span>
+              <div className="text-2xl font-black font-mono tracking-widest text-icms-navy mt-1 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                {activeToken}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Tampilkan kode QR atau bagikan token ini kepada mahasiswa di dalam kelas.
+              </p>
+            </div>
+
+            <div className="w-full pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Mata Kuliah:</span>
+              <span className="font-bold text-slate-800">IF101 (IF-1A)</span>
+            </div>
+          </div>
+
+          {/* Real-time Attendees List */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-icms-border shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-icms-navy">Daftar Mahasiswa Hadir Real-Time</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Mahasiswa yang telah melakukan check-in pada sesi ini.</p>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                {attendees.length} Mahasiswa Hadir
+              </span>
+            </div>
+
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+              {attendees.map((a, idx) => (
+                <div key={idx} className="p-4 hover:bg-slate-50/50 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[11px]">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900">{a.name}</h4>
+                      <span className="text-[10px] text-slate-400 font-mono">{a.nim}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-slate-400">{a.time}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      HADIR
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Attendance History Table */}
-      <div className="bg-white rounded-2xl border border-icms-border shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-icms-navy font-heading">
-              Riwayat Presensi Semester Ini
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Rekapitulasi persentase kehadiran per mata kuliah (Syarat ujian min. 75%)
-            </p>
-          </div>
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            Tingkat Kehadiran: 100%
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-100">
-              <tr>
-                <th className="py-3 px-4">Tanggal & Jam</th>
-                <th className="py-3 px-4">Kode & Mata Kuliah</th>
-                <th className="py-3 px-4">Pertemuan</th>
-                <th className="py-3 px-4">Topik Materi</th>
-                <th className="py-3 px-4">Ruang Kuliah</th>
-                <th className="py-3 px-4 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {[
-                { date: '10 Nov 2026, 08:02', course: 'IF101 — Algoritma & Pemrograman Dasar', session: 'Pertemuan 8', topic: 'Array 2 Dimensi & Matriks', room: 'LAB-KOM-01', status: 'PRESENT' },
-                { date: '03 Nov 2026, 08:05', course: 'IF101 — Algoritma & Pemrograman Dasar', session: 'Pertemuan 7', topic: 'Struktur Kontrol Perulangan (Loops)', room: 'LAB-KOM-01', status: 'PRESENT' },
-                { date: '27 Okt 2026, 08:01', course: 'IF101 — Algoritma & Pemrograman Dasar', session: 'Pertemuan 6', topic: 'Kondisional Bersarang (Nested If)', room: 'LAB-KOM-01', status: 'PRESENT' },
-                { date: '20 Okt 2026, 13:04', course: 'IF102 — Matematika Diskrit', session: 'Pertemuan 5', topic: 'Relasi Ekuivalensi & Partisi', room: 'R-TEORI-302', status: 'PRESENT' },
-              ].map((rec, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3 px-4 font-mono text-slate-700">{rec.date}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800">{rec.course}</td>
-                  <td className="py-3 px-4 font-semibold text-slate-600">{rec.session}</td>
-                  <td className="py-3 px-4 text-slate-600">{rec.topic}</td>
-                  <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">{rec.room}</td>
-                  <td className="py-3 px-4 text-center">
-                    <StatusBadge status={rec.status} label="Hadir" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* QR Code Modal for Lecturer */}
+      {/* Modal Buka Sesi */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="text-left">
-                <h3 className="text-sm font-bold text-icms-navy">Sesi Presensi QR Aktif</h3>
-                <p className="text-[11px] text-slate-500">IF101-01 • Pertemuan ke-8</p>
-              </div>
-              <button onClick={() => setModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
+              <h3 className="font-bold text-base text-icms-navy">Buka Sesi Presensi Baru</h3>
+              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col items-center justify-center space-y-3">
-              <div className="w-44 h-44 bg-white p-3 rounded-xl border border-slate-300 shadow flex items-center justify-center">
-                <div className="w-full h-full bg-slate-900 rounded-lg flex items-center justify-center text-white text-[10px] p-2 text-center font-mono">
-                  [QR TOKEN: {qrToken}]
-                  <br />
-                  Scan via Portal Mahasiswa
-                </div>
+            <form onSubmit={handleCreateSession} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Mata Kuliah & Kelas</label>
+                <input
+                  type="text"
+                  disabled
+                  value="IF101 - Algoritma & Pemrograman Lanjut (IF-1A)"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium"
+                />
               </div>
-              <div className="text-xs text-emerald-600 font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>Token: {qrToken}</span>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Topik Perkuliahan Hari Ini</label>
+                <input
+                  type="text"
+                  defaultValue="Pertemuan ke-8: Binary Search Tree & Graph Traversals"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-1 focus:ring-icms-academic-blue"
+                  required
+                />
               </div>
-            </div>
 
-            <p className="text-xs text-slate-500">
-              Mahasiswa memasukkan kode di atas untuk verifikasi kehadiran.
-            </p>
-
-            <button
-              onClick={() => setModalOpen(false)}
-              className="w-full py-2 bg-icms-navy text-white text-xs font-bold rounded-xl hover:bg-slate-800"
-            >
-              Tutup QR Presensi
-            </button>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-icms-academic-blue hover:bg-blue-700 text-white rounded-xl shadow-xs"
+                >
+                  Buat Sesi & Generate Token
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 };
-

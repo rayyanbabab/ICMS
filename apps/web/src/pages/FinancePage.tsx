@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export const FinancePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const queryClient = useQueryClient();
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -34,11 +34,11 @@ export const FinancePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const isStudent = user?.roles?.includes(UserRole.STUDENT);
+  const isStudent = activeRole === UserRole.STUDENT;
 
   // Fetch student invoices if student
   const { data: studentFinance, isLoading: isStudentLoading, refetch: refetchStudent } = useQuery({
-    queryKey: ['student-finance'],
+    queryKey: ['student-finance', activeRole],
     queryFn: async () => {
       const res = await api.get('/finance/my-invoices');
       return res.data;
@@ -48,7 +48,7 @@ export const FinancePage: React.FC = () => {
 
   // Fetch all invoices if admin or leadership
   const { data: allFinance, isLoading: isAdminLoading, refetch: refetchAdmin } = useQuery({
-    queryKey: ['admin-finance', statusFilter, searchTerm],
+    queryKey: ['admin-finance', statusFilter, searchTerm, activeRole],
     queryFn: async () => {
       const res = await api.get('/finance/invoices', {
         params: { status: statusFilter, search: searchTerm },
