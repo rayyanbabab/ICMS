@@ -44,3 +44,4 @@ export class AttendanceController {
     return this.attendanceService.getAttendanceHistory(userId);
   }
 }
+

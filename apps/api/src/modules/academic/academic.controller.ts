@@ -60,4 +60,54 @@ export class AcademicController {
   async getStudentKhs(@CurrentUser('sub') userId: string) {
     return this.academicService.getStudentKhs(userId);
   }
+
+  @Get('schedules')
+  @ApiOperation({ summary: 'Get weekly class schedule for authenticated user (student or lecturer)' })
+  async getWeeklySchedule(@CurrentUser('sub') userId: string) {
+    return this.academicService.getWeeklySchedule(userId);
+  }
+
+  @Get('calendar')
+  @ApiOperation({ summary: 'Get university academic calendar milestones and timeline' })
+  async getAcademicCalendar() {
+    return this.academicService.getAcademicCalendar();
+  }
+
+  @Get('exams')
+  @ApiOperation({ summary: 'Get midterm and final exams with questions for CBT simulator' })
+  async getExams(@CurrentUser('sub') userId: string) {
+    return this.academicService.getExams(userId);
+  }
+
+  @Post('exams/:id/submit')
+  @ApiOperation({ summary: 'Submit CBT exam answers and get instant evaluation score' })
+  async submitExam(
+    @CurrentUser('sub') userId: string,
+    @Param('id') examId: string,
+    @Body('answers') answers: Record<string, number>,
+  ) {
+    return this.academicService.submitExam(userId, examId, answers);
+  }
+
+  @Get('curricula')
+  @ApiOperation({ summary: 'Get list of OBE curricula and Capaian Pembelajaran' })
+  async getCurricula() {
+    return this.academicService.getCurricula();
+  }
+
+  @Get('letters')
+  @ApiOperation({ summary: 'Get student official administrative letters and verifications' })
+  async getAdministrationLetters(@CurrentUser('sub') userId: string) {
+    return this.academicService.getAdministrationLetters(userId);
+  }
+
+  @Post('letters/request')
+  @ApiOperation({ summary: 'Request official student letter (Aktif Kuliah, Izin Riset, Magang)' })
+  async requestLetter(
+    @CurrentUser('sub') userId: string,
+    @Body() body: { type: string; purpose: string; recipientAgency?: string },
+  ) {
+    return this.academicService.requestLetter(userId, body);
+  }
 }
+

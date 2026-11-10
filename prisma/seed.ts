@@ -724,6 +724,51 @@ async function main() {
 
   console.log('✓ Seeded Digital Library categories, catalog books, member and active loans.');
 
+  // 11. Campus Announcements
+  await prisma.announcement.upsert({
+    where: { slug: 'jadwal-ujian-tengah-semester-ganjil-2026' },
+    update: {},
+    create: {
+      slug: 'jadwal-ujian-tengah-semester-ganjil-2026',
+      title: 'Jadwal Pelaksanaan Ujian Tengah Semester (UTS) Ganjil 2026/2027',
+      content: 'Diberitahukan kepada seluruh mahasiswa dan dosen Universitas Indonesia Mandiri bahwa Ujian Tengah Semester (UTS) Ganjil TA 2026/2027 akan diselenggarakan mulai tanggal 15 November 2026 secara Computer-Based Testing (CBT). Mahasiswa diwajibkan telah melunasi UKT dan membawa Kartu Ujian Digital dari portal ICMS.',
+      category: 'AKADEMIK',
+      targetAudience: 'ALL',
+      isPinned: true,
+      authorName: 'Biro Administrasi Akademik & Kemahasiswaan (BAAK)',
+    },
+  });
+
+  await prisma.announcement.upsert({
+    where: { slug: 'pembukaan-beasiswa-prestasi-djarum-plus-2026' },
+    update: {},
+    create: {
+      slug: 'pembukaan-beasiswa-prestasi-djarum-plus-2026',
+      title: 'Pembukaan Pendaftaran Program Beasiswa Unggulan & Prestasi Industri 2026',
+      content: 'Universitas Indonesia Mandiri membuka kesempatan bagi mahasiswa aktif semester 1 hingga 5 dengan IPK minimal 3.50 untuk mengajukan beasiswa dana pendidikan dan tunjangan hidup. Pendaftaran dibuka sampai dengan 30 November 2026 melalui Biro Kemahasiswaan.',
+      category: 'BEASISWA',
+      targetAudience: 'STUDENTS',
+      isPinned: true,
+      authorName: 'Biro Kemahasiswaan & Alumni',
+    },
+  });
+
+  await prisma.announcement.upsert({
+    where: { slug: 'lokakarya-rekreasi-kecerdasan-buatan-google-deepmind' },
+    update: {},
+    create: {
+      slug: 'lokakarya-rekreasi-kecerdasan-buatan-google-deepmind',
+      title: 'Kuliah Umum & Workshop Nasional: Rekayasa AI Agent & Cloud Architecture',
+      content: 'Fakultas Teknologi Informasi (FTI) bekerja sama dengan mitra industri menyelenggarakan seminar teknologi komputasi awan dan Large Language Model bagi civitas akademika pada Sabtu, 28 November 2026 di Auditorium Utama Kampus A Thamrin.',
+      category: 'KEGIATAN',
+      targetAudience: 'ALL',
+      isPinned: false,
+      authorName: 'Fakultas Teknologi Informasi (FTI)',
+    },
+  });
+
+  console.log('✓ Seeded official campus announcements.');
+
   console.log('===========================================================');
   console.log('Database Seeding Complete!');
   console.log('===========================================================');

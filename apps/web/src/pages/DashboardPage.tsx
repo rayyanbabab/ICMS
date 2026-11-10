@@ -5,7 +5,26 @@ import { SuperAdminDashboard } from './dashboards/SuperAdminDashboard';
 import { RectorDashboard } from './dashboards/RectorDashboard';
 import { LecturerDashboard } from './dashboards/LecturerDashboard';
 import { StudentPortalDashboard } from './dashboards/StudentPortalDashboard';
-import { ShieldCheck, GraduationCap, Users, UserCheck } from 'lucide-react';
+import { DeanDashboard } from './dashboards/DeanDashboard';
+import { HeadOfProgramDashboard } from './dashboards/HeadOfProgramDashboard';
+import { AcademicAdminDashboard } from './dashboards/AcademicAdminDashboard';
+import { FinanceAdminDashboard } from './dashboards/FinanceAdminDashboard';
+import { LibrarianDashboard } from './dashboards/LibrarianDashboard';
+import { AdmissionAdminDashboard } from './dashboards/AdmissionAdminDashboard';
+import { AdaptiveStaffDashboard } from './dashboards/AdaptiveStaffDashboard';
+import { 
+  ShieldCheck, 
+  GraduationCap, 
+  Users, 
+  UserCheck, 
+  Building2, 
+  BookOpen, 
+  FileText, 
+  Receipt, 
+  Library, 
+  UserPlus,
+  Award
+} from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -34,61 +53,56 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <button
-            onClick={() => setActiveWorkspaceRole(UserRole.SUPER_ADMIN)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeWorkspaceRole === UserRole.SUPER_ADMIN
-                ? 'bg-icms-navy text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Super Admin</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWorkspaceRole(UserRole.RECTOR)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeWorkspaceRole === UserRole.RECTOR
-                ? 'bg-icms-academic-blue text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Rektor</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWorkspaceRole(UserRole.LECTURER)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeWorkspaceRole === UserRole.LECTURER
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Dosen</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWorkspaceRole(UserRole.STUDENT)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeWorkspaceRole === UserRole.STUDENT
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Mahasiswa</span>
-          </button>
+          {[
+            { role: UserRole.SUPER_ADMIN, label: 'Super Admin', icon: ShieldCheck, color: 'bg-icms-navy' },
+            { role: UserRole.RECTOR, label: 'Rektor', icon: UserCheck, color: 'bg-icms-academic-blue' },
+            { role: UserRole.DEAN, label: 'Dekan FTI', icon: Building2, color: 'bg-indigo-700' },
+            { role: UserRole.HEAD_OF_PROGRAM, label: 'Kaprodi IF', icon: BookOpen, color: 'bg-teal-700' },
+            { role: UserRole.ACADEMIC_ADMIN, label: 'BAAK', icon: FileText, color: 'bg-sky-700' },
+            { role: UserRole.FINANCE_ADMIN, label: 'BAUK', icon: Receipt, color: 'bg-emerald-700' },
+            { role: UserRole.LIBRARIAN, label: 'Pustakawan', icon: Library, color: 'bg-purple-700' },
+            { role: UserRole.ADMISSION_ADMIN, label: 'PMB', icon: UserPlus, color: 'bg-rose-700' },
+            { role: UserRole.LECTURER, label: 'Dosen', icon: Users, color: 'bg-amber-600' },
+            { role: UserRole.STUDENT, label: 'Mahasiswa', icon: GraduationCap, color: 'bg-emerald-600' },
+            { role: UserRole.VICE_RECTOR, label: 'Wakil Rektor', icon: Award, color: 'bg-blue-800' },
+            { role: UserRole.STUDENT_AFFAIRS_ADMIN, label: 'Kemahasiswaan', icon: Users, color: 'bg-cyan-700' },
+            { role: UserRole.HR_ADMIN, label: 'HRD Dosen', icon: UserCheck, color: 'bg-orange-700' },
+            { role: UserRole.ALUMNI, label: 'Alumni', icon: GraduationCap, color: 'bg-slate-700' },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isSelected = activeWorkspaceRole === item.role;
+            return (
+              <button
+                key={item.role}
+                onClick={() => setActiveWorkspaceRole(item.role)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                  isSelected
+                    ? `${item.color} text-white shadow-sm ring-1 ring-black/10`
+                    : 'text-slate-600 hover:bg-slate-100 bg-slate-50'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Render Distinct Role-Based Dashboard Experience */}
       {activeWorkspaceRole === UserRole.SUPER_ADMIN && <SuperAdminDashboard />}
       {activeWorkspaceRole === UserRole.RECTOR && <RectorDashboard />}
+      {activeWorkspaceRole === UserRole.DEAN && <DeanDashboard />}
+      {activeWorkspaceRole === UserRole.HEAD_OF_PROGRAM && <HeadOfProgramDashboard />}
+      {activeWorkspaceRole === UserRole.ACADEMIC_ADMIN && <AcademicAdminDashboard />}
+      {activeWorkspaceRole === UserRole.FINANCE_ADMIN && <FinanceAdminDashboard />}
+      {activeWorkspaceRole === UserRole.LIBRARIAN && <LibrarianDashboard />}
+      {activeWorkspaceRole === UserRole.ADMISSION_ADMIN && <AdmissionAdminDashboard />}
       {activeWorkspaceRole === UserRole.LECTURER && <LecturerDashboard />}
       {activeWorkspaceRole === UserRole.STUDENT && <StudentPortalDashboard />}
+      {[UserRole.VICE_RECTOR, UserRole.STUDENT_AFFAIRS_ADMIN, UserRole.HR_ADMIN, UserRole.ALUMNI].includes(activeWorkspaceRole) && (
+        <AdaptiveStaffDashboard role={activeWorkspaceRole} />
+      )}
     </div>
   );
 };

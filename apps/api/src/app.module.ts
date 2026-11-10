@@ -11,6 +11,9 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { LmsModule } from './modules/lms/lms.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { LibraryModule } from './modules/library/library.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { ManagementModule } from './modules/management/management.module';
+import { SystemModule } from './modules/system/system.module';
 
 @Module({
   imports: [
@@ -29,6 +32,9 @@ import { LibraryModule } from './modules/library/library.module';
     LmsModule,
     FinanceModule,
     LibraryModule,
+    AnnouncementsModule,
+    ManagementModule,
+    SystemModule,
   ],
 })
 export class AppModule {}

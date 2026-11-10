@@ -8,3 +8,4 @@ import { LmsService } from './lms.service';
   exports: [LmsService],
 })
 export class LmsModule {}
+

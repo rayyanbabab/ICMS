@@ -41,3 +41,4 @@ export class FinanceController {
     return this.financeService.createInvoice(body);
   }
 }
+

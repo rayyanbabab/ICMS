@@ -8,3 +8,4 @@ import { AcademicService } from './academic.service';
   exports: [AcademicService],
 })
 export class AcademicModule {}
+

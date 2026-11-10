@@ -898,3 +898,19 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+model Announcement {
+  id             String   @id @default(uuid())
+  title          String
+  slug           String   @unique
+  content        String
+  category       String   // ACADEMIC, SCHOLARSHIP, EVENT, CAREER, GENERAL
+  targetAudience String   @default("ALL") @map("target_audience") // ALL, STUDENTS, LECTURERS
+  isPinned       Boolean  @default(false) @map("is_pinned")
+  authorName     String   @map("author_name")
+  publishedAt    DateTime @default(now()) @map("published_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
+

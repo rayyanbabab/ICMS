@@ -353,3 +353,4 @@ export const KrsPage: React.FC = () => {
     </div>
   );
 };
+
