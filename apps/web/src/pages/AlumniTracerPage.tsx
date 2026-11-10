@@ -147,3 +147,4 @@ export const AlumniTracerPage: React.FC = () => {
     </div>
   );
 };
+

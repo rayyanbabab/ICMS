@@ -174,3 +174,4 @@ export const StudyProgramsPage: React.FC = () => {
     </div>
   );
 };
+

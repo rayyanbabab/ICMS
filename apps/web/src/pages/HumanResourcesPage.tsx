@@ -133,3 +133,4 @@ export const HumanResourcesPage: React.FC = () => {
     </div>
   );
 };
+

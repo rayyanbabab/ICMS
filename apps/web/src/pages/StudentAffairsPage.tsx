@@ -235,3 +235,4 @@ export const StudentAffairsPage: React.FC = () => {
     </div>
   );
 };
+

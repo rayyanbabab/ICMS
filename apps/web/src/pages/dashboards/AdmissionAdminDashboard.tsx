@@ -103,3 +103,4 @@ export const AdmissionAdminDashboard: React.FC = () => {
     </div>
   );
 };
+

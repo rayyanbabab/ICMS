@@ -149,3 +149,4 @@ export const FacultiesPage: React.FC = () => {
     </div>
   );
 };
+

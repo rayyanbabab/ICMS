@@ -260,3 +260,4 @@ const ScheduleCard: React.FC<{ schedule: any }> = ({ schedule }) => {
     </div>
   );
 };
+

@@ -134,3 +134,4 @@ export const RolePermissionsPage: React.FC = () => {
     </div>
   );
 };
+

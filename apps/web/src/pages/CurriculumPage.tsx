@@ -228,3 +228,4 @@ export const CurriculumPage: React.FC = () => {
     </div>
   );
 };
+

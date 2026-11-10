@@ -149,3 +149,4 @@ export const DeanDashboard: React.FC = () => {
     </div>
   );
 };
+

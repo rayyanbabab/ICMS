@@ -353,3 +353,4 @@ export const AnnouncementsPage: React.FC = () => {
     </div>
   );
 };
+

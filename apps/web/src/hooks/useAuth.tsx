@@ -33,6 +33,8 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+  activeRole: UserRole;
+  setActiveRole: (role: UserRole) => void;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   hasRole: (role: UserRole) => boolean;
@@ -44,6 +46,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('icms_access_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeRole, setActiveRoleState] = useState<UserRole>(() => {
+    const saved = localStorage.getItem('icms_active_role');
+    return (saved as UserRole) || UserRole.SUPER_ADMIN;
+  });
+
+  const setActiveRole = (role: UserRole) => {
+    localStorage.setItem('icms_active_role', role);
+    setActiveRoleState(role);
+  };
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -56,7 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const response = await apiRequest<AuthUser>('/auth/me');
         if (response.success && response.data) {
-          setUser(response.data);
+          const fetchedUser = response.data;
+          setUser(fetchedUser);
+
+          // Update active role if not set or invalid for user
+          const savedRole = localStorage.getItem('icms_active_role') as UserRole;
+          if (savedRole) {
+            setActiveRoleState(savedRole);
+          } else if (fetchedUser.roles && fetchedUser.roles.length > 0) {
+            const defaultRole = fetchedUser.roles[0];
+            setActiveRoleState(defaultRole);
+            localStorage.setItem('icms_active_role', defaultRole);
+          }
         } else {
           logout();
         }
@@ -87,6 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('icms_refresh_token', response.data.refreshToken);
         setToken(response.data.accessToken);
         setUser(response.data.user);
+
+        const primaryRole = response.data.user.roles[0] || UserRole.SUPER_ADMIN;
+        setActiveRoleState(primaryRole);
+        localStorage.setItem('icms_active_role', primaryRole);
       }
     } finally {
       setIsLoading(false);
@@ -96,8 +122,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     localStorage.removeItem('icms_access_token');
     localStorage.removeItem('icms_refresh_token');
+    localStorage.removeItem('icms_active_role');
     setToken(null);
     setUser(null);
+    setActiveRoleState(UserRole.SUPER_ADMIN);
   };
 
   const hasRole = (role: UserRole) => {
@@ -107,7 +135,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, hasRole }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        activeRole,
+        setActiveRole,
+        login,
+        logout,
+        hasRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

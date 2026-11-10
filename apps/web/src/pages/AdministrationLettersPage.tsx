@@ -342,3 +342,4 @@ export const AdministrationLettersPage: React.FC = () => {
     </div>
   );
 };
+

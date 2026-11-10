@@ -8,3 +8,4 @@ import { ManagementService } from './management.service';
   exports: [ManagementService],
 })
 export class ManagementModule {}
+

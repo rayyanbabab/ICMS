@@ -107,3 +107,4 @@ export const AcademicAdminDashboard: React.FC = () => {
     </div>
   );
 };
+

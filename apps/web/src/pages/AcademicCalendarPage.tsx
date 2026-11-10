@@ -216,3 +216,4 @@ export const AcademicCalendarPage: React.FC = () => {
     </div>
   );
 };
+

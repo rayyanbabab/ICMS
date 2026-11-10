@@ -151,3 +151,4 @@ export const ResearchLppmPage: React.FC = () => {
     </div>
   );
 };
+

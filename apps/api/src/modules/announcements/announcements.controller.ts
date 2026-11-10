@@ -25,3 +25,4 @@ export class AnnouncementsController {
     return this.announcementsService.create(body);
   }
 }
+
