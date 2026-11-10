@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { MainLayout } from './layouts/MainLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { UsersPage } from './pages/UsersPage';
 import { ModulePlaceholderPage } from './pages/ModulePlaceholderPage';
 import { Loader2 } from 'lucide-react';
 
@@ -50,6 +51,9 @@ export const App: React.FC = () => {
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout />}>
               <Route index element={<DashboardPage />} />
+
+              {/* User Management Route */}
+              <Route path="sistem/pengguna" element={<UsersPage />} />
 
               {/* Academic Routes */}
               <Route path="akademik/*" element={<ModulePlaceholderPage />} />

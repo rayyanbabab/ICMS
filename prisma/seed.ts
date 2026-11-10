@@ -33,7 +33,7 @@ async function main() {
   }
   console.log(`✓ Seeded ${roles.length} system roles.`);
 
-  // 2. Seed University & Organizational Hierarchy
+  // 2. Organization Structure
   const university = await prisma.university.upsert({
     where: { code: 'UIM' },
     update: {},
@@ -113,14 +113,82 @@ async function main() {
     },
   });
 
-  console.log('✓ Seeded organizational structure (University, Campus, Faculty, Program, Academic Year, Semester).');
+  // 3. Classrooms
+  const roomA = await prisma.classroom.upsert({
+    where: { code: 'LAB-KOM-01' },
+    update: {},
+    create: {
+      campusId: campus.id,
+      code: 'LAB-KOM-01',
+      name: 'Laboratorium Komputer & Rekayasa Perangkat Lunak',
+      capacity: 40,
+      building: 'Gedung Rektorat & Lab Terpadu',
+      floor: 3,
+      isLab: true,
+    },
+  });
 
-  // 3. Seed Users with Argon2id passwords
+  const roomB = await prisma.classroom.upsert({
+    where: { code: 'R-TEORI-302' },
+    update: {},
+    create: {
+      campusId: campus.id,
+      code: 'R-TEORI-302',
+      name: 'Ruang Teori 302',
+      capacity: 50,
+      building: 'Gedung FTI',
+      floor: 3,
+      isLab: false,
+    },
+  });
+
+  // 4. Curriculum & Courses
+  const curriculum = await prisma.curriculum.upsert({
+    where: { code: 'KUR-IF-2024' },
+    update: {},
+    create: {
+      studyProgramId: studyProgram.id,
+      code: 'KUR-IF-2024',
+      name: 'Kurikulum Merdeka Teknik Informatika 2024',
+      year: 2024,
+      totalCredits: 144,
+      isActive: true,
+    },
+  });
+
+  const coursesData = [
+    { code: 'IF101', name: 'Algoritma & Pemrograman Dasar', englishName: 'Fundamentals of Algorithm & Programming', credits: 3, semester: 1, type: 'MANDATORY' },
+    { code: 'IF102', name: 'Matematika Diskrit', englishName: 'Discrete Mathematics', credits: 3, semester: 1, type: 'MANDATORY' },
+    { code: 'IF103', name: 'Pengantar Teknologi Informasi', englishName: 'Introduction to Information Technology', credits: 2, semester: 1, type: 'MANDATORY' },
+    { code: 'IF201', name: 'Struktur Data & Algoritma Lanjut', englishName: 'Data Structures & Algorithms', credits: 4, semester: 2, type: 'MANDATORY' },
+    { code: 'IF202', name: 'Sistem Basis Data', englishName: 'Database Systems', credits: 3, semester: 2, type: 'MANDATORY' },
+    { code: 'IF301', name: 'Rekayasa Perangkat Lunak', englishName: 'Software Engineering', credits: 3, semester: 3, type: 'MANDATORY' },
+    { code: 'IF302', name: 'Jaringan Komputer & Keamanan', englishName: 'Computer Networks & Security', credits: 3, semester: 3, type: 'MANDATORY' },
+    { code: 'IF303', name: 'Kecerdasan Buatan (AI)', englishName: 'Artificial Intelligence', credits: 3, semester: 5, type: 'ELECTIVE' },
+  ];
+
+  const seededCourses: Record<string, any> = {};
+  for (const c of coursesData) {
+    const course = await prisma.course.upsert({
+      where: { code: c.code },
+      update: {},
+      create: {
+        curriculumId: curriculum.id,
+        ...c,
+      },
+    });
+    seededCourses[c.code] = course;
+  }
+  console.log(`✓ Seeded ${coursesData.length} academic courses.`);
+
+  // 5. Seed Users & Profiles
   const superAdminRole = await prisma.role.findUniqueOrThrow({ where: { code: 'SUPER_ADMIN' } });
+  const rectorRole = await prisma.role.findUniqueOrThrow({ where: { code: 'RECTOR' } });
   const lecturerRole = await prisma.role.findUniqueOrThrow({ where: { code: 'LECTURER' } });
   const studentRole = await prisma.role.findUniqueOrThrow({ where: { code: 'STUDENT' } });
 
   const adminPasswordHash = await argon2.hash('AdminPassword123!');
+  const rektorPasswordHash = await argon2.hash('RektorPassword123!');
   const dosenPasswordHash = await argon2.hash('DosenPassword123!');
   const mhsPasswordHash = await argon2.hash('MahasiswaPassword123!');
 
@@ -152,6 +220,39 @@ async function main() {
     create: {
       userId: adminUser.id,
       roleId: superAdminRole.id,
+      facultyId: faculty.id,
+      studyProgramId: studyProgram.id,
+    },
+  });
+
+  // Rector
+  const rektorUser = await prisma.user.upsert({
+    where: { email: 'rektor@icms.ac.id' },
+    update: {},
+    create: {
+      email: 'rektor@icms.ac.id',
+      username: 'rektor',
+      passwordHash: rektorPasswordHash,
+      fullName: 'Prof. Dr. Ir. Hendra Setiawan, M.Eng.',
+      phoneNumber: '081198765432',
+      isActive: true,
+      isVerified: true,
+    },
+  });
+
+  await prisma.userRoleMap.upsert({
+    where: {
+      userId_roleId_facultyId_studyProgramId: {
+        userId: rektorUser.id,
+        roleId: rectorRole.id,
+        facultyId: faculty.id,
+        studyProgramId: studyProgram.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: rektorUser.id,
+      roleId: rectorRole.id,
       facultyId: faculty.id,
       studyProgramId: studyProgram.id,
     },
@@ -237,7 +338,7 @@ async function main() {
     },
   });
 
-  await prisma.student.upsert({
+  const student = await prisma.student.upsert({
     where: { userId: mhsUser.id },
     update: {},
     create: {
@@ -254,12 +355,108 @@ async function main() {
     },
   });
 
-  console.log('✓ Seeded standard default users (Admin, Lecturer, Student).');
+  // 6. Course Offerings & Classes for active semester
+  const activeCourses = [seededCourses['IF101'], seededCourses['IF102'], seededCourses['IF103'], seededCourses['IF202']];
+  const seededClasses: any[] = [];
+
+  for (const c of activeCourses) {
+    if (!c) continue;
+    const offering = await prisma.courseOffering.upsert({
+      where: {
+        semesterId_courseId: {
+          semesterId: semester.id,
+          courseId: c.id,
+        },
+      },
+      update: {},
+      create: {
+        semesterId: semester.id,
+        courseId: c.id,
+      },
+    });
+
+    const courseClass = await prisma.courseClass.upsert({
+      where: { id: `class-${c.code}-01` },
+      update: {},
+      create: {
+        id: `class-${c.code}-01`,
+        courseOfferingId: offering.id,
+        lecturerId: lecturer.id,
+        name: `${c.code}-01`,
+        capacity: 40,
+        enrolledCount: 1,
+      },
+    });
+
+    seededClasses.push(courseClass);
+
+    // Class schedule
+    await prisma.classSchedule.create({
+      data: {
+        classId: courseClass.id,
+        classroomId: c.code === 'IF101' ? roomA.id : roomB.id,
+        dayOfWeek: 1, // Monday
+        startTime: '08:00',
+        endTime: '10:30',
+      },
+    }).catch(() => {});
+  }
+  console.log(`✓ Seeded course offerings, classes, and schedules.`);
+
+  // 7. Initial Student Registration (KRS) & KHS Grades
+  const registration = await prisma.studentRegistration.upsert({
+    where: {
+      studentId_semesterId: {
+        studentId: student.id,
+        semesterId: semester.id,
+      },
+    },
+    update: {},
+    create: {
+      studentId: student.id,
+      semesterId: semester.id,
+      status: 'APPROVED',
+      totalCredits: 11,
+      maxCredits: 24,
+      gpaPrevious: 3.85,
+      submittedAt: new Date(),
+      approvedAt: new Date(),
+      approvedBy: lecturer.id,
+    },
+  });
+
+  // Seed sample grades for KHS display
+  const sampleGrades = [
+    { classId: seededClasses[0]?.id, score: 92.5, gradeLetter: 'A', gradePoint: 4.0 },
+    { classId: seededClasses[1]?.id, score: 85.0, gradeLetter: 'A', gradePoint: 4.0 },
+    { classId: seededClasses[2]?.id, score: 78.5, gradeLetter: 'B+', gradePoint: 3.5 },
+    { classId: seededClasses[3]?.id, score: 88.0, gradeLetter: 'A', gradePoint: 4.0 },
+  ];
+
+  for (const sg of sampleGrades) {
+    if (!sg.classId) continue;
+    await prisma.studentRegistrationDetail.upsert({
+      where: {
+        registrationId_classId: {
+          registrationId: registration.id,
+          classId: sg.classId,
+        },
+      },
+      update: {},
+      create: {
+        registrationId: registration.id,
+        classId: sg.classId,
+        scoreNumeric: sg.score,
+        gradeLetter: sg.gradeLetter,
+        gradePoint: sg.gradePoint,
+        isPublished: true,
+      },
+    });
+  }
+  console.log(`✓ Seeded student registration, KRS approval, and KHS grade details.`);
+
   console.log('===========================================================');
-  console.log('Credentials:');
-  console.log('1. Super Admin: admin / AdminPassword123! (admin@icms.ac.id)');
-  console.log('2. Dosen      : dosen / DosenPassword123! (dosen@icms.ac.id)');
-  console.log('3. Mahasiswa  : mahasiswa / MahasiswaPassword123! (mahasiswa@icms.ac.id)');
+  console.log('Database Seeding Complete!');
   console.log('===========================================================');
 }
 

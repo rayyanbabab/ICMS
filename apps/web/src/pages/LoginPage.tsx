@@ -114,7 +114,7 @@ export const LoginPage: React.FC = () => {
             <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">
               Pilih Akun Demo (1-Click Fill)
             </span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => setCredentials('admin', 'AdminPassword123!')}
@@ -126,11 +126,20 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => setCredentials('rektor', 'RektorPassword123!')}
+                className="p-2 text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
+              >
+                <div className="text-[11px] font-bold text-icms-academic-blue">Rektor</div>
+                <div className="text-[9px] text-slate-500">Pimpinan UIM</div>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setCredentials('dosen', 'DosenPassword123!')}
                 className="p-2 text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
               >
-                <div className="text-[11px] font-bold text-icms-navy">Dosen</div>
-                <div className="text-[9px] text-slate-500">Pengajar & Wali</div>
+                <div className="text-[11px] font-bold text-amber-700">Dosen</div>
+                <div className="text-[9px] text-slate-500">Pengajar & PA</div>
               </button>
 
               <button
@@ -138,8 +147,8 @@ export const LoginPage: React.FC = () => {
                 onClick={() => setCredentials('mahasiswa', 'MahasiswaPassword123!')}
                 className="p-2 text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
               >
-                <div className="text-[11px] font-bold text-icms-navy">Mahasiswa</div>
-                <div className="text-[9px] text-slate-500">NIM 202601001</div>
+                <div className="text-[11px] font-bold text-emerald-700">Mahasiswa</div>
+                <div className="text-[9px] text-slate-500">Portal Belajar</div>
               </button>
             </div>
           </div>
