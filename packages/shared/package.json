@@ -2,8 +2,14 @@
   "name": "@icms/shared",
   "version": "1.0.0",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w"
@@ -12,4 +18,3 @@
     "typescript": "^5.7.3"
   }
 }
-

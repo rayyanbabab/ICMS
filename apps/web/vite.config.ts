@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@icms/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
   },
   server: {
@@ -21,4 +22,3 @@ export default defineConfig({
     },
   },
 });
-
