@@ -56,7 +56,12 @@ interface RoleThemeConfig {
   bgClass: string;
 }
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  onClose?: () => void;
+  isMobileDrawer?: boolean;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onClose, isMobileDrawer = false }) => {
   const { user, activeRole } = useAuth();
 
   // Role Theme and Subtitle Mapping
@@ -553,29 +558,35 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside
-      className={`${
-        isSlim ? 'w-20' : 'w-64'
-      } ${theme.bgClass} text-slate-300 flex flex-col h-screen fixed left-0 top-0 z-30 border-r transition-all duration-300 select-none`}
+      className={
+        isMobileDrawer
+          ? `flex flex-col h-full w-full ${theme.bgClass} text-slate-300 select-none overflow-hidden`
+          : `hidden lg:flex flex-col h-screen fixed left-0 top-0 z-30 border-r transition-all duration-300 select-none ${
+              isSlim ? 'w-20' : 'w-64'
+            } ${theme.bgClass} text-slate-300`
+      }
     >
-      {/* Brand Header */}
-      <div className={`h-16 flex items-center ${isSlim ? 'justify-center px-2' : 'px-5'} bg-black/20 border-b border-white/10 gap-3`}>
-        <div className="w-9 h-9 rounded-xl bg-icms-academic-blue flex items-center justify-center font-bold text-white shadow-md border border-icms-gold/40 shrink-0">
-          I
-        </div>
-        {!isSlim && (
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-white tracking-wide text-xs font-heading truncate">
-              {institutionalTheme.universityName.split(' ')[0]} {institutionalTheme.universityName.split(' ')[1] || 'CAMPUS'}
-            </span>
-            <span className="text-[10px] text-icms-gold font-semibold uppercase tracking-wider truncate">
-              {theme.subtitle}
-            </span>
+      {/* Brand Header (Desktop only) */}
+      {!isMobileDrawer && (
+        <div className={`h-16 flex items-center ${isSlim ? 'justify-center px-2' : 'px-5'} bg-black/20 border-b border-white/10 gap-3`}>
+          <div className="w-9 h-9 rounded-xl bg-icms-academic-blue flex items-center justify-center font-bold text-white shadow-md border border-icms-gold/40 shrink-0">
+            I
           </div>
-        )}
-      </div>
+          {!isSlim && (
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-white tracking-wide text-xs font-heading truncate">
+                {institutionalTheme.universityName.split(' ')[0]} {institutionalTheme.universityName.split(' ')[1] || 'CAMPUS'}
+              </span>
+              <span className="text-[10px] text-icms-gold font-semibold uppercase tracking-wider truncate">
+                {theme.subtitle}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Role Pill Indicator in Sidebar */}
-      {!isSlim && (
+      {/* Role Pill Indicator in Sidebar (Desktop only) */}
+      {!isSlim && !isMobileDrawer && (
         <div className="px-4 py-2 bg-black/30 border-b border-white/5 flex items-center justify-between">
           <span className="text-[10px] font-medium text-slate-400">Modul Peran:</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${theme.badgeColor}`}>
@@ -588,7 +599,7 @@ export const Sidebar: React.FC = () => {
       <div className={`flex-1 overflow-y-auto ${isSlim ? 'px-2' : 'px-3'} py-3 space-y-5 scrollbar-thin`}>
         {sections.map((section) => (
           <div key={section.category}>
-            {!isSlim && (
+            {(!isSlim || isMobileDrawer) && (
               <div className="px-3 mb-1.5 text-[10px] font-extrabold text-slate-400/90 uppercase tracking-wider">
                 {section.category}
               </div>
@@ -601,10 +612,15 @@ export const Sidebar: React.FC = () => {
                     key={item.path + item.title}
                     to={item.path}
                     end={item.path === '/'}
-                    title={isSlim ? item.title : undefined}
+                    title={isSlim && !isMobileDrawer ? item.title : undefined}
+                    onClick={() => {
+                      if (onClose) onClose();
+                    }}
                     className={({ isActive }) =>
                       `flex items-center ${
-                        isSlim ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2'
+                        isSlim && !isMobileDrawer
+                          ? 'justify-center p-2.5'
+                          : 'gap-2.5 px-3 py-2.5 min-h-[42px]'
                       } rounded-xl text-xs font-medium transition-all ${
                         isActive
                           ? theme.activeClass
@@ -613,7 +629,7 @@ export const Sidebar: React.FC = () => {
                     }
                   >
                     <Icon className="w-4 h-4 shrink-0 text-slate-300" />
-                    {!isSlim && <span className="truncate">{item.title}</span>}
+                    {(!isSlim || isMobileDrawer) && <span className="truncate">{item.title}</span>}
                   </NavLink>
                 );
               })}
@@ -622,18 +638,20 @@ export const Sidebar: React.FC = () => {
         ))}
       </div>
 
-      {/* Footer User Info */}
-      <div className={`p-3 bg-black/40 border-t border-white/10 text-[11px] text-slate-400 flex items-center ${isSlim ? 'justify-center' : 'justify-between'}`}>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          {!isSlim && <span className="text-[10px] font-medium text-slate-300">Sistem Aktif</span>}
+      {/* Footer User Info (Desktop only) */}
+      {!isMobileDrawer && (
+        <div className={`p-3 bg-black/40 border-t border-white/10 text-[11px] text-slate-400 flex items-center ${isSlim ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            {!isSlim && <span className="text-[10px] font-medium text-slate-300">Sistem Aktif</span>}
+          </div>
+          {!isSlim && (
+            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
+              {user?.username ? `@${user.username}` : ''}
+            </span>
+          )}
         </div>
-        {!isSlim && (
-          <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
-            {user?.username ? `@${user.username}` : ''}
-          </span>
-        )}
-      </div>
+      )}
     </aside>
   );
 };

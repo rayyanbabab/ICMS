@@ -212,6 +212,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'LOGIN' | 'DEMO'>('LOGIN');
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -241,6 +242,8 @@ export const LoginPage: React.FC = () => {
 
     if (autoSubmit) {
       handleLogin(demo.identifier, 'AdminPassword123!');
+    } else {
+      setMobileTab('LOGIN');
     }
   };
 
@@ -282,10 +285,38 @@ export const LoginPage: React.FC = () => {
       </header>
 
       {/* Main Container: Split Enterprise Experience */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-8 items-start justify-center my-auto">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 lg:gap-8 items-start justify-center my-auto">
+        {/* Mobile View Toggle Pills */}
+        <div className="flex lg:hidden items-center p-1 bg-slate-200/80 rounded-2xl w-full max-w-md mx-auto shadow-inner">
+          <button
+            type="button"
+            onClick={() => setMobileTab('LOGIN')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'LOGIN'
+                ? 'bg-white text-icms-navy shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5 text-blue-600" />
+            <span>Masuk ke Akun</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('DEMO')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'DEMO'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>14 Akun Demo</span>
+          </button>
+        </div>
+
         {/* Left Column: Interactive 14 Demo Accounts Explorer */}
-        <section className="w-full lg:w-7/12 flex flex-col gap-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm">
+        <section className={`w-full lg:w-7/12 flex-col gap-4 ${mobileTab === 'DEMO' ? 'flex' : 'hidden lg:flex'}`}>
+          <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold mb-1.5 border border-blue-200">
@@ -398,7 +429,7 @@ export const LoginPage: React.FC = () => {
         </section>
 
         {/* Right Column: Clean White Elevated Login Card */}
-        <section className="w-full lg:w-5/12 max-w-md mx-auto">
+        <section className={`w-full lg:w-5/12 max-w-md mx-auto ${mobileTab === 'LOGIN' ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200 shadow-xl shadow-slate-200/50 flex flex-col justify-between">
             <div>
               {/* Form Header */}

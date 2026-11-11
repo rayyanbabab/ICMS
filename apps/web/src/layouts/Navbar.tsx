@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Calendar, Database, LogOut, ChevronDown, Check, Sparkles, Command, Palette } from 'lucide-react';
+import { Search, Bell, Calendar, Database, LogOut, ChevronDown, Check, Sparkles, Command, Palette, Menu } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { UserRole } from '@icms/shared';
@@ -25,7 +25,11 @@ const roleLabels: Record<UserRole, { label: string; badge: string }> = {
   [UserRole.ALUMNI]: { label: 'Alumni', badge: 'bg-slate-700 text-white' },
 };
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onToggleMobileMenu?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
   const { user, activeRole, setActiveRole, logout } = useAuth();
   const { isSlim, theme } = useThemeConfig();
   const navigate = useNavigate();
@@ -38,7 +42,7 @@ export const Navbar: React.FC = () => {
     latencyMs: null,
   });
 
-  // Global Ctrl+K / Cmd+K key listener for Command Palette
+  // Global listeners for Command Palette & Theme Customizer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -46,8 +50,18 @@ export const Navbar: React.FC = () => {
         setIsPaletteOpen((prev) => !prev);
       }
     };
+    const handleOpenPalette = () => setIsPaletteOpen(true);
+    const handleOpenTheme = () => setIsThemeModalOpen(true);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-command-palette', handleOpenPalette);
+    window.addEventListener('open-theme-modal', handleOpenTheme);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-command-palette', handleOpenPalette);
+      window.removeEventListener('open-theme-modal', handleOpenTheme);
+    };
   }, []);
 
   useEffect(() => {
@@ -76,38 +90,76 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className={`h-16 bg-white border-b border-icms-border fixed top-0 right-0 ${isSlim ? 'left-20' : 'left-64'} transition-all duration-300 z-20 flex items-center justify-between px-6`}>
-        {/* Search Bar / Omnisearch Trigger */}
-        <div className="flex items-center gap-3 w-80 md:w-96">
-          <div
-            onClick={() => setIsPaletteOpen(true)}
-            className="relative w-full cursor-pointer group"
+      <header className={`h-14 lg:h-16 bg-white/95 backdrop-blur-md border-b border-icms-border fixed top-0 right-0 left-0 ${isSlim ? 'lg:left-20' : 'lg:left-64'} transition-all duration-300 z-20 flex items-center justify-between px-3 sm:px-6`}>
+        {/* Left Side: Mobile Menu + Branding + Desktop Search */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Hamburger Drawer Trigger */}
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            aria-label="Buka Menu Kampus"
+            className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
           >
-            <Search className="w-4 h-4 text-icms-gray absolute left-3 top-1/2 -translate-y-1/2 group-hover:text-icms-academic-blue transition-colors" />
-            <div className="w-full pl-9 pr-14 py-1.5 text-xs bg-slate-50 border border-icms-border rounded-lg group-hover:border-icms-academic-blue text-slate-500 flex items-center justify-between transition-all select-none">
-              <span>Cari modul, mahasiswa, dosen...</span>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-400">
-                <Command className="w-2.5 h-2.5" /> K
-              </kbd>
+            <Menu className="w-5 h-5 text-icms-navy" />
+          </button>
+
+          {/* Mobile University Branding Shield */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <div className="w-8 h-8 rounded-xl bg-icms-academic-blue text-white flex items-center justify-center font-bold text-xs shadow-xs border border-icms-gold/40 shrink-0">
+              U
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-xs text-icms-navy tracking-tight font-heading leading-tight truncate max-w-[120px] sm:max-w-none">
+                ICMS Campus
+              </span>
+              <span className="text-[9px] text-slate-500 font-medium leading-none">
+                Enterprise
+              </span>
+            </div>
+          </div>
+
+          {/* Desktop Search Bar / Omnisearch Trigger */}
+          <div className="hidden lg:flex items-center gap-3 w-80 md:w-96">
+            <div
+              onClick={() => setIsPaletteOpen(true)}
+              className="relative w-full cursor-pointer group"
+            >
+              <Search className="w-4 h-4 text-icms-gray absolute left-3 top-1/2 -translate-y-1/2 group-hover:text-icms-academic-blue transition-colors" />
+              <div className="w-full pl-9 pr-14 py-1.5 text-xs bg-slate-50 border border-icms-border rounded-lg group-hover:border-icms-academic-blue text-slate-500 flex items-center justify-between transition-all select-none">
+                <span>Cari modul, mahasiswa, dosen...</span>
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-400">
+                  <Command className="w-2.5 h-2.5" /> K
+                </kbd>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4">
+          {/* Mobile Search Button */}
+          <button
+            type="button"
+            onClick={() => setIsPaletteOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-icms-academic-blue hover:bg-slate-100 transition-colors"
+            title="Cari Cepat (Command Palette)"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
           {/* Role Selector Dropdown */}
           <div className="relative">
             <button
               onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200 transition-all shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200 transition-all shadow-sm"
               title="Ganti sudut pandang role"
             >
-              <Sparkles className="w-3.5 h-3.5 text-icms-gold" />
-              <span className="hidden sm:inline text-slate-500 font-normal">Peran:</span>
-              <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${currentRoleInfo.badge}`}>
+              <Sparkles className="w-3.5 h-3.5 text-icms-gold shrink-0" />
+              <span className="hidden md:inline text-slate-500 font-normal">Peran:</span>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold truncate max-w-[90px] sm:max-w-none ${currentRoleInfo.badge}`}>
                 {currentRoleInfo.label}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </button>
 
             {roleMenuOpen && (
@@ -116,7 +168,7 @@ export const Navbar: React.FC = () => {
                   className="fixed inset-0 z-30"
                   onClick={() => setRoleMenuOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-40 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-40 max-h-96 overflow-y-auto">
                   <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Ganti Tampilan Role & Sidebar
                   </div>

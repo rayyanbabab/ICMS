@@ -201,9 +201,72 @@ export const UsersPage: React.FC<UsersPageProps> = ({
         </div>
       </div>
 
-      {/* Users Data Table */}
+      {/* Users Data Container: Responsive Cards on Mobile & Full Table on Desktop */}
       <div className="bg-white rounded-2xl border border-icms-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: High-Touch App Cards */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {loading ? (
+            <div className="py-8 text-center text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-icms-academic-blue mb-2" />
+              <span>Memuat data pengguna...</span>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="py-8 text-center text-slate-400">
+              Tidak ada pengguna ditemukan.
+            </div>
+          ) : (
+            users.map((item) => (
+              <div key={item.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm shrink-0">
+                      {item.fullName.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-icms-navy">{item.fullName}</div>
+                      <div className="text-[11px] text-slate-500">{item.email}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">@{item.username}</div>
+                    </div>
+                  </div>
+                  <StatusBadge
+                    status={item.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    label={item.isActive ? 'Aktif' : 'Nonaktif'}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {item.roles.map((r) => (
+                    <span
+                      key={r}
+                      className="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-50 text-icms-academic-blue font-bold border border-blue-100"
+                    >
+                      {r}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-slate-400">
+                    Dibuat: {new Date(item.createdAt).toLocaleDateString('id-ID')}
+                  </span>
+                  <button
+                    onClick={() => handleToggleStatus(item.id)}
+                    className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      item.isActive
+                        ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                    }`}
+                  >
+                    {item.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Data Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-100">
               <tr>
