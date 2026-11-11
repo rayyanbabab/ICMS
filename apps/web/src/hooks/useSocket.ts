@@ -9,11 +9,13 @@ export function useSocket() {
   const [incomingAlert, setIncomingAlert] = useState<any>(null);
 
   useEffect(() => {
-    // Connect to WebSocket server on origin or port 4000
-    const socket = io('/', {
+    // Connect to WebSocket server on port 4000
+    const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/';
+    const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 3,
+      timeout: 5000,
     });
 
     socketRef.current = socket;
@@ -24,6 +26,10 @@ export function useSocket() {
       if (activeRole) {
         socket.emit('join_role_room', activeRole);
       }
+    });
+
+    socket.on('connect_error', () => {
+      setIsConnected(false);
     });
 
     socket.on('disconnect', () => {

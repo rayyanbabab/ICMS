@@ -11,6 +11,19 @@ export default defineConfig({
       '@icms/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'socket.io-client',
+      'lucide-react',
+      'recharts',
+      'clsx',
+      'tailwind-merge',
+    ],
+  },
   server: {
     port: 5173,
     host: true,
@@ -18,6 +31,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },
