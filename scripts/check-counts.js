@@ -34,3 +34,4 @@ async function checkCounts() {
 }
 
 checkCounts().catch(console.error).finally(() => prisma.$disconnect());
+
