@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { UserRole } from '@icms/shared';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { exportToCsv } from '../utils/export';
+import { TranscriptModal } from '../components/ui/TranscriptModal';
 import {
   Award,
   BookOpen,
@@ -65,6 +66,7 @@ export const KhsPage: React.FC = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [newScore, setNewScore] = useState<number>(90);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
 
   const fetchKhs = () => {
     setLoading(true);
@@ -179,6 +181,14 @@ export const KhsPage: React.FC = () => {
           >
             <FileDown className="w-4 h-4 text-emerald-600" />
             <span>Ekspor KHS (.csv)</span>
+          </button>
+          <button
+            onClick={() => setIsTranscriptModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
+            title="Cetak Transkrip Akademik Kumulatif dengan TTE Digital"
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>Transkrip Lengkap (TTE)</span>
           </button>
           <button
             onClick={() => window.print()}
@@ -376,6 +386,20 @@ export const KhsPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Transkrip Akademik Resmi Modal */}
+      <TranscriptModal
+        isOpen={isTranscriptModalOpen}
+        onClose={() => setIsTranscriptModalOpen(false)}
+        student={{
+          nim: student?.nim || '202601001',
+          fullName: student?.fullName || 'Ahmad Fauzi',
+          studyProgram: student?.studyProgram || 'S1 Teknik Informatika',
+          faculty: student?.faculty || 'Fakultas Teknologi Informasi (FTI)',
+          entryYear: 2024,
+          totalCredits: student?.totalCreditsCompleted || 78,
+          gpa: student?.ipk || 3.88,
+        }}
+      />
     </div>
   );
 };

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Calendar, Database, LogOut, ChevronDown, Check, Sparkles, Command } from 'lucide-react';
+import { Search, Bell, Calendar, Database, LogOut, ChevronDown, Check, Sparkles, Command, Palette } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { UserRole } from '@icms/shared';
 import { CommandPalette } from '../components/ui/CommandPalette';
 import { NotificationCenter } from '../components/ui/NotificationCenter';
+import { ThemeCustomizerModal } from '../components/ui/ThemeCustomizerModal';
+import { useThemeConfig } from '../hooks/useThemeConfig';
 
 const roleLabels: Record<UserRole, { label: string; badge: string }> = {
   [UserRole.SUPER_ADMIN]: { label: 'Super Admin', badge: 'bg-slate-800 text-white' },
@@ -25,10 +27,12 @@ const roleLabels: Record<UserRole, { label: string; badge: string }> = {
 
 export const Navbar: React.FC = () => {
   const { user, activeRole, setActiveRole, logout } = useAuth();
+  const { isSlim, theme } = useThemeConfig();
   const navigate = useNavigate();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [dbStatus, setDbStatus] = useState<{ status: string; latencyMs: number | null }>({
     status: 'checking',
     latencyMs: null,
@@ -72,7 +76,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-icms-border fixed top-0 right-0 left-64 z-20 flex items-center justify-between px-6">
+      <header className={`h-16 bg-white border-b border-icms-border fixed top-0 right-0 ${isSlim ? 'left-20' : 'left-64'} transition-all duration-300 z-20 flex items-center justify-between px-6`}>
         {/* Search Bar / Omnisearch Trigger */}
         <div className="flex items-center gap-3 w-80 md:w-96">
           <div
@@ -145,6 +149,15 @@ export const Navbar: React.FC = () => {
             )}
           </div>
 
+          {/* Theme & Institutional Brand Customizer */}
+          <button
+            onClick={() => setIsThemeModalOpen(true)}
+            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl border border-slate-200/80 transition-colors shadow-2xs"
+            title="Kustomisasi Tema Warna & Identitas Kampus"
+          >
+            <Palette className="w-4 h-4 text-indigo-600" />
+          </button>
+
           {/* Semester Badge */}
           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200/80 rounded-full text-xs font-medium">
             <Calendar className="w-3.5 h-3.5 text-icms-gold" />
@@ -204,6 +217,12 @@ export const Navbar: React.FC = () => {
 
       {/* Global Command Palette (Ctrl+K) */}
       <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+
+      {/* Institutional Theme & Brand Customizer */}
+      <ThemeCustomizerModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+      />
     </>
   );
 };

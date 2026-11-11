@@ -19,8 +19,10 @@ import {
   Calendar,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  UploadCloud
 } from 'lucide-react';
+import { DocumentUploaderModal } from '../components/ui/DocumentUploaderModal';
 
 export const AdministrationLettersPage: React.FC = () => {
   const { user, activeRole } = useAuth();
@@ -31,6 +33,7 @@ export const AdministrationLettersPage: React.FC = () => {
   const [selectedLetter, setSelectedLetter] = useState<any>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isUploaderOpen, setIsUploaderOpen] = useState(false);
 
   // Form input state
   const [letterType, setLetterType] = useState('AKTIF_KULIAH');
@@ -104,6 +107,12 @@ export const AdministrationLettersPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsUploaderOpen(true)}
+            className="px-4 py-2.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors flex items-center gap-2 border border-white/20"
+          >
+            <UploadCloud className="w-4 h-4" /> Unggah Berkas Persyaratan
+          </button>
           <button
             onClick={() => setIsRequestModalOpen(true)}
             className="px-4 py-2.5 text-xs font-bold bg-white text-icms-navy hover:bg-slate-100 rounded-xl shadow-xs transition-colors flex items-center gap-2"
@@ -402,6 +411,12 @@ export const AdministrationLettersPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Cloud Document Uploader Modal */}
+      <DocumentUploaderModal
+        isOpen={isUploaderOpen}
+        onClose={() => setIsUploaderOpen(false)}
+        title="Unggah Dokumen Syarat Layanan Surat BAAK"
+      />
     </div>
   );
 };

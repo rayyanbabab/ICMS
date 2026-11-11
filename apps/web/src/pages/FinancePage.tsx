@@ -6,6 +6,7 @@ import { UserRole } from '@icms/shared';
 import { exportToCsv } from '../utils/export';
 import { StatCard } from '../components/ui/StatCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { PaymentGatewayModal } from '../components/ui/PaymentGatewayModal';
 import { 
   CreditCard, 
   CheckCircle2, 
@@ -402,91 +403,24 @@ export const FinancePage: React.FC = () => {
         </div>
       )}
 
-      {/* PAYMENT GATEWAY MODAL */}
-      {isPaymentModalOpen && selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900">Pembayaran Tagihan Online</h3>
-              <button 
-                onClick={() => setIsPaymentModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 block">Total yang Harus Dibayar</span>
-                <span className="text-2xl font-bold font-mono text-icms-navy">
-                  {formatCurrency(selectedInvoice.amount)}
-                </span>
-                <div className="text-xs text-slate-600 mt-1 font-medium">{selectedInvoice.title}</div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-2">Pilih Kanal Pembayaran Host-to-Host</label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'VIRTUAL_ACCOUNT_BCA', label: 'BCA Virtual Account', code: '88001' },
-                    { id: 'VIRTUAL_ACCOUNT_MANDIRI', label: 'Mandiri Virtual Account', code: '88002' },
-                    { id: 'VIRTUAL_ACCOUNT_BNI', label: 'BNI Virtual Account', code: '88003' },
-                    { id: 'QRIS', label: 'QRIS Real-Time (GoPay, OVO, Dana, LinkAja)', code: 'QRIS' },
-                  ].map((method) => (
-                    <label
-                      key={method.id}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                        paymentMethod === method.id
-                          ? 'border-icms-academic-blue bg-blue-50/50 text-icms-navy'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="payment_method"
-                          value={method.id}
-                          checked={paymentMethod === method.id}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="text-icms-academic-blue"
-                        />
-                        <span className="text-xs font-bold text-slate-800">{method.label}</span>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {method.code}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-xs text-amber-800 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" /> Pembayaran Sandbox Terintegrasi
-                </div>
-                <p>Klik tombol di bawah untuk menyimulasikan notifikasi sukses pembayaran dari bank host-to-host.</p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsPaymentModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleProcessPayment}
-                  disabled={payMutation.isPending}
-                  className="px-5 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  {payMutation.isPending ? 'Memproses...' : 'Konfirmasi & Lunasi'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* PAYMENT GATEWAY MODAL (REAL-TIME QRIS & VIRTUAL ACCOUNT) */}
+      {selectedInvoice && (
+        <PaymentGatewayModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          invoice={{
+            id: selectedInvoice.id,
+            invoiceNumber: selectedInvoice.invoiceNumber,
+            title: selectedInvoice.title,
+            amount: selectedInvoice.amount,
+            dueDate: selectedInvoice.dueDate,
+          }}
+          onSuccess={() => {
+            setIsPaymentModalOpen(false);
+            if (isStudent) refetchStudent();
+            else refetchAdmin();
+          }}
+        />
       )}
 
       {/* RECEIPT MODAL */}

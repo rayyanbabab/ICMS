@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useThemeConfig } from '../hooks/useThemeConfig';
 import { UserRole } from '@icms/shared';
 import {
   LayoutDashboard,
@@ -546,42 +547,53 @@ export const Sidebar: React.FC = () => {
     }
   };
 
+  const { isSlim, theme: institutionalTheme } = useThemeConfig();
   const sections = getSectionsByRole(activeRole);
   const theme = roleTheme[activeRole] || roleTheme[UserRole.SUPER_ADMIN];
 
   return (
-    <aside className={`w-64 ${theme.bgClass} text-slate-300 flex flex-col h-screen fixed left-0 top-0 z-30 border-r transition-colors duration-200`}>
+    <aside
+      className={`${
+        isSlim ? 'w-20' : 'w-64'
+      } ${theme.bgClass} text-slate-300 flex flex-col h-screen fixed left-0 top-0 z-30 border-r transition-all duration-300 select-none`}
+    >
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-5 bg-black/20 border-b border-white/10 gap-3">
+      <div className={`h-16 flex items-center ${isSlim ? 'justify-center px-2' : 'px-5'} bg-black/20 border-b border-white/10 gap-3`}>
         <div className="w-9 h-9 rounded-xl bg-icms-academic-blue flex items-center justify-center font-bold text-white shadow-md border border-icms-gold/40 shrink-0">
           I
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="font-bold text-white tracking-wide text-sm font-heading truncate">
-            {theme.title}
-          </span>
-          <span className="text-[10px] text-icms-gold font-semibold uppercase tracking-wider truncate">
-            {theme.subtitle}
-          </span>
-        </div>
+        {!isSlim && (
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-white tracking-wide text-xs font-heading truncate">
+              {institutionalTheme.universityName.split(' ')[0]} {institutionalTheme.universityName.split(' ')[1] || 'CAMPUS'}
+            </span>
+            <span className="text-[10px] text-icms-gold font-semibold uppercase tracking-wider truncate">
+              {theme.subtitle}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Role Pill Indicator in Sidebar */}
-      <div className="px-4 py-2 bg-black/30 border-b border-white/5 flex items-center justify-between">
-        <span className="text-[10px] font-medium text-slate-400">Modul Peran:</span>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${theme.badgeColor}`}>
-          {activeRole}
-        </span>
-      </div>
+      {!isSlim && (
+        <div className="px-4 py-2 bg-black/30 border-b border-white/5 flex items-center justify-between">
+          <span className="text-[10px] font-medium text-slate-400">Modul Peran:</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${theme.badgeColor}`}>
+            {activeRole}
+          </span>
+        </div>
+      )}
 
       {/* Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5 scrollbar-thin">
+      <div className={`flex-1 overflow-y-auto ${isSlim ? 'px-2' : 'px-3'} py-3 space-y-5 scrollbar-thin`}>
         {sections.map((section) => (
           <div key={section.category}>
-            <div className="px-3 mb-1.5 text-[10px] font-extrabold text-slate-400/90 uppercase tracking-wider">
-              {section.category}
-            </div>
-            <div className="space-y-0.5">
+            {!isSlim && (
+              <div className="px-3 mb-1.5 text-[10px] font-extrabold text-slate-400/90 uppercase tracking-wider">
+                {section.category}
+              </div>
+            )}
+            <div className="space-y-1">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -589,8 +601,11 @@ export const Sidebar: React.FC = () => {
                     key={item.path + item.title}
                     to={item.path}
                     end={item.path === '/'}
+                    title={isSlim ? item.title : undefined}
                     className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      `flex items-center ${
+                        isSlim ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2'
+                      } rounded-xl text-xs font-medium transition-all ${
                         isActive
                           ? theme.activeClass
                           : 'text-slate-300 hover:bg-white/10 hover:text-white'
@@ -598,7 +613,7 @@ export const Sidebar: React.FC = () => {
                     }
                   >
                     <Icon className="w-4 h-4 shrink-0 text-slate-300" />
-                    <span className="truncate">{item.title}</span>
+                    {!isSlim && <span className="truncate">{item.title}</span>}
                   </NavLink>
                 );
               })}
@@ -608,14 +623,16 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Footer User Info */}
-      <div className="p-3 bg-black/40 border-t border-white/10 text-[11px] text-slate-400 flex items-center justify-between">
+      <div className={`p-3 bg-black/40 border-t border-white/10 text-[11px] text-slate-400 flex items-center ${isSlim ? 'justify-center' : 'justify-between'}`}>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="text-[10px] font-medium text-slate-300">Sistem Aktif</span>
+          {!isSlim && <span className="text-[10px] font-medium text-slate-300">Sistem Aktif</span>}
         </div>
-        <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
-          {user?.username ? `@${user.username}` : ''}
-        </span>
+        {!isSlim && (
+          <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
+            {user?.username ? `@${user.username}` : ''}
+          </span>
+        )}
       </div>
     </aside>
   );
