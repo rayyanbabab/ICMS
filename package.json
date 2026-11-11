@@ -19,6 +19,8 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "test": "npm run test -w @icms/api",
+    "test:e2e": "node scripts/verify-all.js",
     "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {
