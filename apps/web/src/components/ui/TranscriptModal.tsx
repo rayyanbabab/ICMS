@@ -265,3 +265,4 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     </div>
   );
 };
+
