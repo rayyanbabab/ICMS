@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 export interface StoredLetter {
   id: string;
@@ -56,7 +57,10 @@ let sharedLetters: StoredLetter[] = [
 
 @Injectable()
 export class AcademicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly eventsGateway?: EventsGateway,
+  ) {}
 
   private async resolveStudent(userId: string) {
     const directStudent = await this.prisma.student.findUnique({
@@ -815,6 +819,18 @@ export class AcademicService {
     };
 
     sharedLetters.unshift(newLetter);
+
+    if (this.eventsGateway) {
+      this.eventsGateway.broadcastNotification({
+        id: `notif-ltr-${Date.now()}`,
+        title: 'Permohonan Surat Baru',
+        message: `${newLetter.studentName} (${newLetter.studentNim}) mengajukan ${newLetter.title}.`,
+        category: 'AKADEMIK',
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+        link: '/operasional/administrasi',
+      });
+    }
+
     return newLetter;
   }
 
@@ -824,6 +840,18 @@ export class AcademicService {
     ltr.status = isApproved ? 'APPROVED' : 'REJECTED';
     ltr.approvedDate = isApproved ? new Date().toISOString().split('T')[0] : undefined;
     ltr.signedBy = isApproved ? 'Dr. Hendra Wijaya, M.Pd. (Kepala BAAK)' : undefined;
+
+    if (this.eventsGateway) {
+      this.eventsGateway.broadcastNotification({
+        id: `notif-appr-${Date.now()}`,
+        title: isApproved ? 'Surat Telah Disetujui BAAK' : 'Permohonan Surat Ditolak',
+        message: `${ltr.title} No: ${ltr.letterNumber} telah ${isApproved ? 'disahkan dan ditandatangani secara digital' : 'ditolak'}.`,
+        category: 'AKADEMIK',
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+        link: '/operasional/administrasi',
+      });
+    }
+
     return ltr;
   }
 }

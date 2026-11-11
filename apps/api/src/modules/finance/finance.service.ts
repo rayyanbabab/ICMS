@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class FinanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly eventsGateway?: EventsGateway,
+  ) {}
 
   async getStudentInvoices(userId: string) {
     let student = await this.prisma.student.findUnique({
@@ -190,6 +194,18 @@ export class FinanceService {
         payments: true,
       },
     });
+
+    // Real-time notification broadcast via WebSockets
+    if (this.eventsGateway) {
+      this.eventsGateway.broadcastNotification({
+        id: `notif-pay-${Date.now()}`,
+        title: 'Pembayaran UKT Berhasil',
+        message: `Tagihan ${updatedInvoice.invoiceNumber} (${updatedInvoice.title}) sebesar Rp ${Number(updatedInvoice.amount).toLocaleString('id-ID')} telah berhasil dilunasi.`,
+        category: 'KEUANGAN',
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+        link: '/operasional/keuangan',
+      });
+    }
 
     return {
       message: 'Pembayaran berhasil diproses dan diverifikasi secara otomatis',
