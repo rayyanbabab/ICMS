@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { UserRole } from '@icms/shared';
+import { exportToCsv } from '../utils/export';
 import { StatCard } from '../components/ui/StatCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { 
@@ -18,7 +19,8 @@ import {
   Search,
   Filter,
   DollarSign,
-  Printer
+  Printer,
+  FileDown
 } from 'lucide-react';
 
 export const FinancePage: React.FC = () => {
@@ -88,6 +90,20 @@ export const FinancePage: React.FC = () => {
     }).format(val);
   };
 
+  const handleExportFinance = () => {
+    const list = isStudent ? (studentFinance?.invoices || []) : (allFinance?.invoices || []);
+    const headers = ['Nomor Invoice', 'Judul Tagihan', 'Nominal (Rp)', 'Status', 'Jatuh Tempo', 'Tanggal Lunas'];
+    const rows = list.map((inv: any) => [
+      inv.invoiceNumber,
+      inv.title,
+      inv.amount,
+      inv.status,
+      inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('id-ID') : '-',
+      inv.paidAt ? new Date(inv.paidAt).toLocaleDateString('id-ID') : '-',
+    ]);
+    exportToCsv(`Laporan_Keuangan_UKT_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -107,7 +123,15 @@ export const FinancePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportFinance}
+            className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-1.5 shadow-xs"
+            title="Ekspor Rekap Keuangan ke CSV/Excel"
+          >
+            <FileDown className="w-4 h-4 text-emerald-400" />
+            <span>Ekspor Kas (.csv)</span>
+          </button>
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 text-right">
             <span className="text-xs text-slate-300 block">Kanal Pembayaran</span>
             <span className="text-sm font-bold text-emerald-400">BCA • Mandiri • BNI • QRIS</span>

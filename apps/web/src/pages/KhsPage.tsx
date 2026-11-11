@@ -3,6 +3,7 @@ import { apiRequest } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { UserRole } from '@icms/shared';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { exportToCsv } from '../utils/export';
 import {
   Award,
   BookOpen,
@@ -17,6 +18,7 @@ import {
   Save,
   X,
   Sparkles,
+  FileDown,
 } from 'lucide-react';
 
 interface KhsReport {
@@ -119,6 +121,34 @@ export const KhsPage: React.FC = () => {
   const student = khs?.student;
   const currentSemester = khs?.semesters?.[0];
 
+  const handleExportCsv = () => {
+    if (!currentSemester) return;
+    const headers = [
+      'Kode MK',
+      'Nama Mata Kuliah',
+      'Kelas',
+      'SKS',
+      'Dosen Pengampu',
+      'Nilai Angka',
+      'Nilai Huruf',
+      'Bobot Mutu',
+      'Status',
+    ];
+    const rows = currentSemester.items.map((item) => [
+      item.courseCode,
+      item.courseName,
+      item.className,
+      item.credits,
+      item.lecturerName,
+      item.scoreNumeric ?? '-',
+      item.gradeLetter,
+      item.gradePoint.toFixed(1),
+      'LULUS',
+    ]);
+    const fileName = `KHS_${student?.nim || '202601001'}_${currentSemester.semesterCode || '2026-1'}`;
+    exportToCsv(fileName, headers, rows);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,6 +172,14 @@ export const KhsPage: React.FC = () => {
               <CheckCircle2 className="w-4 h-4" /> Nilai Berhasil Diperbarui!
             </span>
           )}
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl text-xs border border-emerald-200 transition-colors shadow-xs"
+            title="Ekspor Rekap Nilai ke format CSV / Excel"
+          >
+            <FileDown className="w-4 h-4 text-emerald-600" />
+            <span>Ekspor KHS (.csv)</span>
+          </button>
           <button
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"

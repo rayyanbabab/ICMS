@@ -14,6 +14,7 @@ import { LibraryModule } from './modules/library/library.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { ManagementModule } from './modules/management/management.module';
 import { SystemModule } from './modules/system/system.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SystemModule } from './modules/system/system.module';
       envFilePath: ['.env', '../../.env'],
     }),
     PrismaModule,
+    RealtimeModule,
     HealthModule,
     AuthModule,
     OrganizationModule,

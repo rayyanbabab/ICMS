@@ -1,0 +1,73 @@
+name: ICMS Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Workspace Dependencies
+        run: npm ci
+
+      - name: Generate Prisma ORM Schema
+        run: npx prisma generate
+
+      - name: Build Shared Contracts (@icms/shared)
+        run: npm run build -w @icms/shared
+
+      - name: Build NestJS Monolith API (@icms/api)
+        run: npm run build -w @icms/api
+
+      - name: Build Vite React SPA Portal (@icms/web)
+        run: npm run build -w @icms/web
+
+      - name: Run Backend Automated Test Suite
+        run: npm run test -w @icms/api
+
+  docker-image-validation:
+    name: Docker Container Build Verification
+    runs-on: ubuntu-latest
+    needs: validate-and-build
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.api
+          push: false
+          tags: icms-api:latest
+
+      - name: Build Web Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.web
+          push: false
+          tags: icms-web:latest
+

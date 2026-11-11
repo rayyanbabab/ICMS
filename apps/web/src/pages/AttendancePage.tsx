@@ -3,6 +3,7 @@ import { apiRequest } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { UserRole } from '@icms/shared';
+import { exportToCsv } from '../utils/export';
 import {
   Clock,
   QrCode,
@@ -16,6 +17,7 @@ import {
   Loader2,
   Sparkles,
   BookOpen,
+  FileDown,
 } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -91,6 +93,18 @@ export const AttendancePage: React.FC = () => {
     }, 500);
   };
 
+  const handleExportAttendance = () => {
+    const headers = ['No', 'NIM', 'Nama Mahasiswa', 'Jam Presensi', 'Status'];
+    const rows = attendees.map((a, idx) => [
+      idx + 1,
+      a.nim,
+      a.name,
+      a.time,
+      a.status === 'PRESENT' ? 'HADIR' : a.status,
+    ]);
+    exportToCsv(`Presensi_IF101_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -108,15 +122,25 @@ export const AttendancePage: React.FC = () => {
           </p>
         </div>
 
-        {isLecturer && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-icms-gold hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs shadow-sm transition-all"
+            onClick={handleExportAttendance}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors shadow-xs"
+            title="Ekspor Rekap Kehadiran ke CSV/Excel"
           >
-            <QrCode className="w-4 h-4" />
-            <span>Buka Sesi Presensi QR Hari Ini</span>
+            <FileDown className="w-4 h-4 text-emerald-600" />
+            <span>Ekspor Presensi (.csv)</span>
           </button>
-        )}
+          {isLecturer && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-icms-gold hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs shadow-sm transition-all"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Buka Sesi Presensi QR Hari Ini</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {feedback && (
