@@ -32,6 +32,7 @@ import { RolePermissionsPage } from './pages/RolePermissionsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { ModulePlaceholderPage } from './pages/ModulePlaceholderPage';
+import { UserRole } from '@icms/shared';
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -82,6 +83,8 @@ export const App: React.FC = () => {
                 <Route path="sistem/pengguna" element={<UsersPage />} />
 
                 {/* Academic Core Routes */}
+                <Route path="akademik/dosen" element={<UsersPage defaultRole={UserRole.LECTURER} titleOverride="Direktori & Beban Kerja Dosen (BKD)" subtitleOverride="Data pengajar, jabatan fungsional, dan beban SKS mengajar dosen." />} />
+                <Route path="akademik/mahasiswa" element={<UsersPage defaultRole={UserRole.STUDENT} titleOverride="Data Induk Mahasiswa Terpadu" subtitleOverride="Direktori seluruh mahasiswa aktif, status registrasi, dan program studi." />} />
                 <Route path="akademik/krs" element={<KrsPage />} />
                 <Route path="akademik/khs" element={<KhsPage />} />
                 <Route path="akademik/mata-kuliah" element={<CoursesPage />} />

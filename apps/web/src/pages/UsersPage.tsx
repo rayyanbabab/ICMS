@@ -31,11 +31,21 @@ interface UserItem {
   createdAt: string;
 }
 
-export const UsersPage: React.FC = () => {
+interface UsersPageProps {
+  defaultRole?: UserRole;
+  titleOverride?: string;
+  subtitleOverride?: string;
+}
+
+export const UsersPage: React.FC<UsersPageProps> = ({
+  defaultRole,
+  titleOverride,
+  subtitleOverride,
+}) => {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState(defaultRole || '');
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -133,10 +143,10 @@ export const UsersPage: React.FC = () => {
             <span>Manajemen Pengguna & Otorisasi RBAC</span>
           </div>
           <h1 className="text-2xl font-bold font-heading text-icms-navy mt-1">
-            Daftar Pengguna Sistem
+            {titleOverride || 'Daftar Pengguna Sistem'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Kelola akun, hak akses role, serta status aktif seluruh sivitas akademika universitas.
+            {subtitleOverride || 'Kelola akun, hak akses role, serta status aktif seluruh sivitas akademika universitas.'}
           </p>
         </div>
 

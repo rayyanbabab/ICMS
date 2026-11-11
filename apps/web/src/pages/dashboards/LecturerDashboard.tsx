@@ -18,10 +18,44 @@ import {
   ExternalLink,
   Check,
   X,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { DocumentUploaderModal } from '../../components/ui/DocumentUploaderModal';
+
+const ATTENDANCE_TREND = [
+  { pertemuan: 'P1', persentase: 95 },
+  { pertemuan: 'P2', persentase: 92 },
+  { pertemuan: 'P3', persentase: 94 },
+  { pertemuan: 'P4', persentase: 90 },
+  { pertemuan: 'P5', persentase: 96 },
+  { pertemuan: 'P6', persentase: 93 },
+  { pertemuan: 'P7', persentase: 91 },
+  { pertemuan: 'P8', persentase: 94 },
+];
+
+const GRADE_DISTRIBUTION = [
+  { grade: 'A (85-100)', jumlah: 18, fill: '#10B981' },
+  { grade: 'B+ (75-84)', jumlah: 12, fill: '#2563EB' },
+  { grade: 'B (70-74)', jumlah: 6, fill: '#0EA5E9' },
+  { grade: 'C+ (60-69)', jumlah: 3, fill: '#F59E0B' },
+  { grade: 'C (55-59)', jumlah: 1, fill: '#EF4444' },
+];
 
 export const LecturerDashboard: React.FC = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [activeSession, setActiveSession] = useState('IF101-01');
   const [krsApproved, setKrsApproved] = useState(true);
 
@@ -163,7 +197,11 @@ export const LecturerDashboard: React.FC = () => {
                       <QrCode className="w-3.5 h-3.5" />
                       <span>Tampilkan QR Presensi</span>
                     </button>
-                    <button className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-all">
+                    <button
+                      onClick={() => setIsUploaderOpen(true)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-all"
+                      title="Unggah Materi Kuliah & Silabus"
+                    >
                       <UploadCloud className="w-3.5 h-3.5" />
                       <span>Materi Kuliah</span>
                     </button>
@@ -237,7 +275,97 @@ export const LecturerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* QR Code Presensi Modal Simulation */}
+      {/* Analytics Row: Class Attendance Trend & Cohort Grade Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Attendance Trend Chart */}
+        <div className="bg-white rounded-2xl p-6 border border-icms-border shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 font-heading flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                Tren Presensi Mahasiswa per Pertemuan (8 Sesi)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Monitoring keaktifan kelas IF101 Algoritma & Pemrograman Dasar
+              </p>
+            </div>
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Rata-rata: 93.5%
+            </span>
+          </div>
+
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={ATTENDANCE_TREND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="pertemuan" tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis domain={[80, 100]} tick={{ fontSize: 11, fill: '#64748B' }} />
+                <Tooltip
+                  formatter={(val: number) => [`${val}%`, 'Tingkat Kehadiran']}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '12px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="persentase"
+                  stroke="#10B981"
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#10B981' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Grade Distribution Chart */}
+        <div className="bg-white rounded-2xl p-6 border border-icms-border shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 font-heading flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-600" />
+                Sebaran Nilai Sementara Kelas (40 Mahasiswa)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Evaluasi tugas terstruktur dan kuis berjalan
+              </p>
+            </div>
+            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              Kelulusan: 97.5%
+            </span>
+          </div>
+
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={GRADE_DISTRIBUTION} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="grade" tick={{ fontSize: 10, fill: '#64748B' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
+                <Tooltip
+                  formatter={(val: number) => [`${val} Mahasiswa`, 'Jumlah']}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '12px',
+                  }}
+                />
+                <Bar dataKey="jumlah" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Cloud Material & Syllabus Uploader Modal */}
+      <DocumentUploaderModal
+        isOpen={isUploaderOpen}
+        onClose={() => setIsUploaderOpen(false)}
+        title="Unggah Materi Perkuliahan & Silabus (Cloud Storage)"
+      />
       {qrModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
