@@ -312,6 +312,13 @@ export class AcademicService {
   }
 
   async approveKrs(registrationId: string, approvedByUserId: string, isApproved: boolean, note?: string) {
+    const existing = await this.prisma.studentRegistration.findUnique({
+      where: { id: registrationId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`KRS dengan ID ${registrationId} tidak ditemukan`);
+    }
+
     let lecturer = await this.prisma.lecturer.findUnique({ where: { userId: approvedByUserId } });
     if (!lecturer) {
       lecturer = await this.prisma.lecturer.findFirst();
