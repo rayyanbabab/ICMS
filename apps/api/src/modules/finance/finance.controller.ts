@@ -2,11 +2,14 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/co
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@icms/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Campus Finance & Invoicing')
 @Controller('finance')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
@@ -18,6 +21,7 @@ export class FinanceController {
   }
 
   @Get('invoices')
+  @Roles(UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN, UserRole.RECTOR, UserRole.VICE_RECTOR)
   @ApiOperation({ summary: 'Get all student invoices and financial revenue aggregates (Admin & Leadership)' })
   async getAllInvoices(@Query() query: { status?: string; search?: string }) {
     return this.financeService.getAllInvoices(query);
@@ -34,6 +38,7 @@ export class FinanceController {
   }
 
   @Post('invoices')
+  @Roles(UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create new student invoice with line items (Finance Admin)' })
   async createInvoice(
     @Body() body: { studentId: string; semesterId: string; title: string; dueDate: string; items: { name: string; amount: number }[] },

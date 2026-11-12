@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -186,11 +186,25 @@ export class LibraryService {
   async returnBook(userId: string, loanId: string) {
     const loan = await this.prisma.bookLoan.findUnique({
       where: { id: loanId },
-      include: { book: true },
+      include: { book: true, member: true },
     });
 
     if (!loan) {
       throw new NotFoundException('Data peminjaman tidak ditemukan');
+    }
+
+    // Verify ownership or librarian role
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    });
+
+    const isLibrarianOrAdmin = user?.userRoles.some((ur) =>
+      ['LIBRARIAN', 'SUPER_ADMIN'].includes(ur.role.code),
+    );
+
+    if (loan.member?.userId !== userId && !isLibrarianOrAdmin) {
+      throw new ForbiddenException('Akses ditolak: Anda tidak memiliki wewenang untuk mengembalikan peminjaman ini');
     }
 
     if (loan.status === 'RETURNED') {

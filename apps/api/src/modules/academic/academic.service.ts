@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { EventsGateway } from '../realtime/events.gateway';
+import { UserRole } from '@icms/shared';
 
 export interface StoredLetter {
   id: string;
@@ -319,17 +320,34 @@ export class AcademicService {
       throw new NotFoundException(`KRS dengan ID ${registrationId} tidak ditemukan`);
     }
 
-    let lecturer = await this.prisma.lecturer.findUnique({ where: { userId: approvedByUserId } });
-    if (!lecturer) {
-      lecturer = await this.prisma.lecturer.findFirst();
+    const user = await this.prisma.user.findUnique({
+      where: { id: approvedByUserId },
+      include: {
+        userRoles: { include: { role: true } },
+        lecturerProfile: true,
+      },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Pengguna tidak valid');
     }
+
+    const isAuthorized = user.userRoles.some((ur) =>
+      [UserRole.LECTURER, UserRole.SUPER_ADMIN, UserRole.ACADEMIC_ADMIN, UserRole.HEAD_OF_PROGRAM].includes(
+        ur.role.code as UserRole,
+      ),
+    );
+    if (!isAuthorized) {
+      throw new ForbiddenException('Hanya Dosen Pembimbing Akademik atau BAAK yang berwenang menyetujui KRS');
+    }
+
+    const lecturerId = user.lecturerProfile?.id || approvedByUserId;
 
     const updated = await this.prisma.studentRegistration.update({
       where: { id: registrationId },
       data: {
         status: isApproved ? 'APPROVED' : 'REJECTED',
         approvedAt: isApproved ? new Date() : null,
-        approvedBy: isApproved ? (lecturer?.id || approvedByUserId) : null,
+        approvedBy: isApproved ? lecturerId : null,
         rejectionNote: !isApproved ? (note || 'KRS ditolak oleh Dosen Pembimbing') : null,
       },
     });

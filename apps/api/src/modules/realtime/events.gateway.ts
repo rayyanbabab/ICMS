@@ -9,6 +9,8 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: {
@@ -21,8 +23,31 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(EventsGateway.name);
 
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    try {
+      const authHeader = client.handshake.headers.authorization;
+      const token =
+        (client.handshake.auth?.token as string) ||
+        (client.handshake.query?.token as string) ||
+        (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null);
+
+      if (token) {
+        const payload = this.jwtService.verify(token, {
+          secret: this.configService.get<string>('jwt.secret'),
+        });
+        client.data.user = payload;
+        this.logger.log(`Authenticated client connected: ${client.id} (user: ${payload.username})`);
+        return;
+      }
+    } catch (err) {
+      this.logger.warn(`Unauthenticated connection attempt: ${client.id}`);
+    }
+    this.logger.log(`Guest client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
@@ -34,9 +59,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() role: string,
   ) {
+    const user = client.data?.user;
+    if (!user || (!user.roles?.includes(role) && !user.roles?.includes('SUPER_ADMIN'))) {
+      this.logger.warn(`Unauthorized join_role_room attempt: client ${client.id} tried to join role:${role}`);
+      return { status: 'error', message: 'Akses ke room ditolak: role tidak sesuai otorisasi token' };
+    }
+
     const roomName = `role:${role}`;
     client.join(roomName);
-    this.logger.log(`Client ${client.id} joined ${roomName}`);
+    this.logger.log(`Client ${client.id} (${user.username}) joined ${roomName}`);
     return { status: 'joined', room: roomName };
   }
 

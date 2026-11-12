@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -9,6 +10,14 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 async function bootstrap() {
   const logger = new Logger('ICMS-Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Security Headers via Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Allows Swagger UI assets while protecting headers
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('port', 4000);

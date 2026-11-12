@@ -2,11 +2,14 @@ import { Controller, Get, Post, Body, Param, Query, Headers, UseGuards } from '@
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AcademicService } from './academic.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@icms/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Academic Core')
 @Controller('academic')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class AcademicController {
   constructor(private readonly academicService: AcademicService) {}
@@ -43,6 +46,7 @@ export class AcademicController {
   }
 
   @Get('krs/submissions')
+  @Roles(UserRole.LECTURER, UserRole.ACADEMIC_ADMIN, UserRole.SUPER_ADMIN, UserRole.HEAD_OF_PROGRAM, UserRole.DEAN, UserRole.RECTOR)
   @ApiOperation({ summary: 'Get KRS approval queue for Academic Advisor or Admin' })
   async getKrsSubmissions(
     @CurrentUser('sub') userId: string,
@@ -52,6 +56,7 @@ export class AcademicController {
   }
 
   @Post('krs/:id/approve')
+  @Roles(UserRole.LECTURER, UserRole.ACADEMIC_ADMIN, UserRole.SUPER_ADMIN, UserRole.HEAD_OF_PROGRAM)
   @ApiOperation({ summary: 'Approve or reject student KRS submission' })
   async approveKrs(
     @Param('id') registrationId: string,
@@ -72,6 +77,7 @@ export class AcademicController {
   }
 
   @Post('khs/grade')
+  @Roles(UserRole.LECTURER, UserRole.ACADEMIC_ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update or input student course grade by Lecturer or Admin' })
   async updateStudentGrades(
     @Body() body: { detailId: string; scoreNumeric: number; gradeLetter: string; gradePoint: number },

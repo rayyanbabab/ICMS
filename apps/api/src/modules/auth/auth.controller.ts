@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Req, UseGuards, Ip, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -12,6 +13,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Login user & generate JWT access and refresh tokens' })
   @SwaggerResponse({ status: 200, description: 'Login successful' })
   @SwaggerResponse({ status: 401, description: 'Invalid credentials or inactive account' })

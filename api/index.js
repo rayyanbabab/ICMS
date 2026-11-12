@@ -1,29 +1,17 @@
 // Serverless entrypoint for Vercel
-// Fallback environment variables for serverless execution
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL =
-    'postgresql://neondb_owner:npg_UTk4WDHi5XYl@ep-frosty-pond-b33ih75p-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&connect_timeout=30';
-}
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL =
-    'postgresql://neondb_owner:npg_UTk4WDHi5XYl@ep-frosty-pond-b33ih75p.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&connect_timeout=30';
-}
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'icms_super_secure_jwt_secret_key_change_in_production_2026_xyz';
-}
-if (!process.env.JWT_REFRESH_SECRET) {
-  process.env.JWT_REFRESH_SECRET = 'icms_super_secure_refresh_secret_key_change_in_production_2026_abc';
-}
+// Environment variables are securely loaded from Vercel Project Settings
 
 const { NestFactory } = require('@nestjs/core');
 const { ExpressAdapter } = require('@nestjs/platform-express');
 const express = require('express');
+const helmet = require('helmet');
 const { AppModule } = require('../apps/api/dist/app.module');
 const { ValidationPipe } = require('@nestjs/common');
 const { TransformInterceptor } = require('../apps/api/dist/common/interceptors/transform.interceptor');
 const { AllExceptionsFilter } = require('../apps/api/dist/common/filters/all-exceptions.filter');
 
 const server = express();
+server.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 let isReady = false;
 let initPromise = null;
 
@@ -46,8 +34,23 @@ async function bootstrap() {
     logger: ['error', 'warn'],
   });
 
+  const allowedOrigins = [
+    'https://icms-campus.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+  ];
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Akses CORS ditolak'));
+      }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 

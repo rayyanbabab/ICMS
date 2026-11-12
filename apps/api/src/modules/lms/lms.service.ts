@@ -281,11 +281,22 @@ export class LmsService {
   }
 
   async gradeSubmission(
-    _userId: string,
+    userId: string,
     submissionId: string,
     data: { score: number; feedback?: string },
     _activeRole?: string,
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } }, lecturerProfile: true },
+    });
+    const isAuthorized = user?.userRoles.some((ur) =>
+      ['LECTURER', 'SUPER_ADMIN', 'ACADEMIC_ADMIN'].includes(ur.role.code),
+    );
+    if (!isAuthorized) {
+      throw new ForbiddenException('Hanya dosen pengampu atau admin yang berhak memberikan penilaian tugas');
+    }
+
     const submission = await this.prisma.assignmentSubmission.findUnique({ where: { id: submissionId } });
     if (!submission) throw new NotFoundException('Submission tugas tidak ditemukan');
 

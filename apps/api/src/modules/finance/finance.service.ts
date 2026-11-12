@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { EventsGateway } from '../realtime/events.gateway';
+import { UserRole } from '@icms/shared';
 
 @Injectable()
 export class FinanceService {
@@ -156,10 +157,27 @@ export class FinanceService {
   async payInvoice(userId: string, invoiceId: string, data: { paymentMethod: string }) {
     const invoice = await this.prisma.studentInvoice.findUnique({
       where: { id: invoiceId },
+      include: { student: true },
     });
 
     if (!invoice) {
       throw new NotFoundException('Tagihan tidak ditemukan');
+    }
+
+    // Verify ownership: user must be the student owning this invoice OR an authorized finance admin
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } }, studentProfile: true },
+    });
+
+    const isFinanceOrSuperAdmin = user?.userRoles.some((ur) =>
+      [UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN].includes(ur.role.code as UserRole),
+    );
+
+    const isOwner = user?.studentProfile?.id === invoice.studentId;
+
+    if (!isFinanceOrSuperAdmin && !isOwner) {
+      throw new ForbiddenException('Akses ditolak: Anda tidak memiliki akses untuk membayar tagihan mahasiswa lain');
     }
 
     if (invoice.status === 'PAID') {

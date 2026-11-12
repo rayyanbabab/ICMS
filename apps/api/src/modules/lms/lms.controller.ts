@@ -2,11 +2,14 @@ import { Controller, Get, Post, Body, Param, Headers, UseGuards } from '@nestjs/
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LmsService } from './lms.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@icms/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('LMS Digital Classroom')
 @Controller('lms')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class LmsController {
   constructor(private readonly lmsService: LmsService) {}
@@ -21,6 +24,7 @@ export class LmsController {
   }
 
   @Post('classes/:classId/materials')
+  @Roles(UserRole.LECTURER, UserRole.SUPER_ADMIN, UserRole.ACADEMIC_ADMIN)
   @ApiOperation({ summary: 'Upload or add new lecture material (Lecturer / Admin)' })
   async createMaterial(
     @CurrentUser('sub') userId: string,
@@ -32,6 +36,7 @@ export class LmsController {
   }
 
   @Post('classes/:classId/assignments')
+  @Roles(UserRole.LECTURER, UserRole.SUPER_ADMIN, UserRole.ACADEMIC_ADMIN)
   @ApiOperation({ summary: 'Create new assignment with deadline and max score' })
   async createAssignment(
     @CurrentUser('sub') userId: string,
@@ -43,6 +48,7 @@ export class LmsController {
   }
 
   @Post('assignments/:assignmentId/submit')
+  @Roles(UserRole.STUDENT, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Student submit homework / assignment file' })
   async submitAssignment(
     @CurrentUser('sub') userId: string,
@@ -54,6 +60,7 @@ export class LmsController {
   }
 
   @Post('submissions/:submissionId/grade')
+  @Roles(UserRole.LECTURER, UserRole.SUPER_ADMIN, UserRole.ACADEMIC_ADMIN)
   @ApiOperation({ summary: 'Lecturer grade assignment submission with score and feedback' })
   async gradeSubmission(
     @CurrentUser('sub') userId: string,
