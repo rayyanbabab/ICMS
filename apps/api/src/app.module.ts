@@ -29,7 +29,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
       {
         name: 'default',
         ttl: 60000,
-        limit: 120,
+        limit: 300,
       },
     ]),
     PrismaModule,

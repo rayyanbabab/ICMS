@@ -35,21 +35,50 @@ export async function apiRequest<T = any>(
   }
 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const response = await fetch(`${BASE_URL}${cleanEndpoint}`, {
-    ...options,
-    headers,
-  });
 
-  const data: ApiResponse<T> = await response.json().catch(() => ({
-    success: false,
-    statusCode: response.status,
-    message: response.statusText,
-    data: null as any,
-    timestamp: new Date().toISOString(),
-  }));
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${cleanEndpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (netErr: any) {
+    throw new ApiError(
+      'Gagal terhubung ke server ICMS. Mohon periksa koneksi internet Anda atau coba muat ulang halaman.',
+      0,
+    );
+  }
+
+  let data: ApiResponse<T>;
+  try {
+    data = await response.json();
+  } catch {
+    const fallbackMessage =
+      response.status === 429
+        ? 'Terlalu banyak percobaan masuk. Mohon tunggu 1 menit lalu coba kembali.'
+        : response.status >= 500
+        ? 'Layanan server sedang bersiap (cold start). Silakan coba lagi beberapa detik lagi.'
+        : response.statusText || 'Gagal memproses respons dari server.';
+    data = {
+      success: false,
+      statusCode: response.status,
+      message: fallbackMessage,
+      data: null as any,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   if (!response.ok || !data.success) {
-    throw new ApiError(data.message || 'Request failed', data.statusCode || response.status, data.errors);
+    const defaultMsg =
+      response.status === 401
+        ? 'Kredensial tidak valid. Silakan periksa kembali email atau username dan password Anda.'
+        : response.status === 403
+        ? 'Akses ditolak: Akun Anda tidak memiliki izin untuk fitur ini.'
+        : response.status === 429
+        ? 'Terlalu banyak percobaan masuk. Mohon tunggu 1 menit lalu coba kembali.'
+        : 'Permintaan gagal diproses. Silakan coba beberapa saat lagi.';
+
+    throw new ApiError(data.message || defaultMsg, data.statusCode || response.status, data.errors);
   }
 
   return data;

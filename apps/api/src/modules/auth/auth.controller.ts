@@ -13,7 +13,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @ApiOperation({ summary: 'Login user & generate JWT access and refresh tokens' })
   @SwaggerResponse({ status: 200, description: 'Login successful' })
   @SwaggerResponse({ status: 401, description: 'Invalid credentials or inactive account' })

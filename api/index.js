@@ -11,7 +11,14 @@ const { TransformInterceptor } = require('../apps/api/dist/common/interceptors/t
 const { AllExceptionsFilter } = require('../apps/api/dist/common/filters/all-exceptions.filter');
 
 const server = express();
-server.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+server.set('trust proxy', 1);
+server.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
 let isReady = false;
 let initPromise = null;
 
@@ -44,13 +51,21 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      if (
+        !origin ||
+        origin === 'null' ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')
+      ) {
         callback(null, true);
       } else {
-        callback(new Error('Akses CORS ditolak'));
+        callback(null, false);
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type,Authorization,X-Active-Role,X-Requested-With,Accept,Origin',
     credentials: true,
   });
 
@@ -73,7 +88,11 @@ async function bootstrap() {
 module.exports = async (req, res) => {
   if (!isReady) {
     if (!initPromise) {
-      initPromise = bootstrap();
+      initPromise = bootstrap().catch((err) => {
+        initPromise = null;
+        isReady = false;
+        throw err;
+      });
     }
     await initPromise;
   }
